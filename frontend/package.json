@@ -8,6 +8,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "chart.js": "^4.4.9",
     "firebase": "^10.14.1"
   },
   "devDependencies": {

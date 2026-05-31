@@ -4,6 +4,7 @@
 
 import { database } from "./firebase-config.js";
 import { ref, onValue, update } from "firebase/database";
+import { initCharts, addMoisturePoint, addPumpPoint } from "./charts.js";
 
 const DB_ROOT = "smartSprinkler";
 
@@ -41,6 +42,8 @@ const state = {
   pump: null,
   mode: null,
   connected: false,
+  lastChartMoisture: null,
+  lastChartPump: null,
 };
 
 // ---------------------------------------------------------------------------
@@ -175,9 +178,30 @@ function renderDashboard(data) {
     return;
   }
 
+  recordChartData(data);
   renderMoisture(data.soilMoisture);
   renderPump(data.pumpStatus);
   renderMode(data.mode);
+}
+
+function recordChartData(data) {
+  const now = new Date();
+
+  if (data.soilMoisture !== null && data.soilMoisture !== undefined && !isNaN(data.soilMoisture)) {
+    const moisture = Math.max(0, Math.min(100, Math.round(Number(data.soilMoisture))));
+
+    if (state.lastChartMoisture !== moisture) {
+      addMoisturePoint(now, moisture);
+      state.lastChartMoisture = moisture;
+    }
+  }
+
+  if (data.pumpStatus === VALUES.PUMP.ON || data.pumpStatus === VALUES.PUMP.OFF) {
+    if (state.lastChartPump !== data.pumpStatus) {
+      addPumpPoint(now, data.pumpStatus);
+      state.lastChartPump = data.pumpStatus;
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -263,6 +287,7 @@ function bindEvents() {
 // ---------------------------------------------------------------------------
 
 function init() {
+  initCharts();
   bindEvents();
   setConnectionStatus("connecting");
 

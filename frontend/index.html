@@ -139,6 +139,34 @@
             </div>
           </div>
         </section>
+
+        <section class="charts" aria-label="Live charts">
+          <article class="chart-card chart-card--moisture">
+            <div class="chart-card__header">
+              <h2 class="chart-card__title">Soil Moisture History</h2>
+              <p class="chart-card__desc">Latest 20 readings this session</p>
+            </div>
+            <div class="chart-card__canvas-wrap chart-card__canvas-wrap--tall">
+              <canvas id="moistureChart" aria-label="Soil moisture line chart"></canvas>
+            </div>
+            <p class="chart-card__hint" id="moistureChartHint">Chart updates when Firebase data changes.</p>
+          </article>
+
+          <article class="chart-card chart-card--pump">
+            <div class="chart-card__header">
+              <h2 class="chart-card__title">Pump Activity</h2>
+              <p class="chart-card__desc">ON/OFF changes this session</p>
+            </div>
+            <div class="last-pump-activity">
+              <span class="last-pump-activity__label">Last pump activity</span>
+              <span class="last-pump-activity__status" id="lastPumpStatus">--</span>
+              <span class="last-pump-activity__time" id="lastPumpTime">No activity recorded yet</span>
+            </div>
+            <div class="chart-card__canvas-wrap chart-card__canvas-wrap--short">
+              <canvas id="pumpChart" aria-label="Pump activity chart"></canvas>
+            </div>
+          </article>
+        </section>
       </main>
 
       <footer class="footer">
