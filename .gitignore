@@ -7,6 +7,10 @@ Thumbs.db
 .idea/
 *.swp
 
+# Dependencies & build
+node_modules/
+dist/
+
 # Environment / secrets
 .env
 firebase-config.local.js

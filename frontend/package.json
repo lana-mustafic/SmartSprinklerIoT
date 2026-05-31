@@ -1,0 +1,16 @@
+{
+  "name": "smart-sprinkler-frontend",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "firebase": "^10.14.1"
+  },
+  "devDependencies": {
+    "vite": "^5.4.19"
+  }
+}
