@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Smart Sprinkler IoT Dashboard — monitor soil moisture and control the water pump."
+    />
+    <title>Smart Sprinkler IoT</title>
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <div class="app">
+      <header class="header">
+        <div class="header__brand">
+          <div class="header__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0L12 2.69z" />
+            </svg>
+          </div>
+          <div>
+            <h1 class="header__title">Smart Sprinkler IoT</h1>
+            <p class="header__subtitle">Soil moisture monitoring &amp; pump control</p>
+          </div>
+        </div>
+        <div class="connection-status" id="connectionStatus" role="status">
+          <span class="connection-status__dot"></span>
+          <span class="connection-status__label">Connecting…</span>
+        </div>
+      </header>
+
+      <main class="main">
+        <section class="metrics" aria-label="System metrics">
+          <article class="metric-card metric-card--moisture">
+            <div class="metric-card__header">
+              <span class="metric-card__label">Soil Moisture</span>
+              <span class="metric-card__icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0L12 2.69z" />
+                </svg>
+              </span>
+            </div>
+            <div class="metric-card__value">
+              <span id="moistureValue">--</span>
+              <span class="metric-card__unit">%</span>
+            </div>
+            <div class="moisture-bar" aria-hidden="true">
+              <div class="moisture-bar__fill" id="moistureBar"></div>
+            </div>
+            <p class="metric-card__hint" id="moistureHint">Waiting for data…</p>
+          </article>
+
+          <article class="metric-card metric-card--pump">
+            <div class="metric-card__header">
+              <span class="metric-card__label">Pump Status</span>
+              <span class="metric-card__icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="3" />
+                  <path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83" />
+                </svg>
+              </span>
+            </div>
+            <div class="metric-card__status" id="pumpStatus">--</div>
+            <p class="metric-card__hint" id="pumpHint">Water pump state</p>
+          </article>
+
+          <article class="metric-card metric-card--mode">
+            <div class="metric-card__header">
+              <span class="metric-card__label">System Mode</span>
+              <span class="metric-card__icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="3" width="7" height="7" rx="1" />
+                  <rect x="14" y="3" width="7" height="7" rx="1" />
+                  <rect x="3" y="14" width="7" height="7" rx="1" />
+                  <rect x="14" y="14" width="7" height="7" rx="1" />
+                </svg>
+              </span>
+            </div>
+            <div class="metric-card__status" id="modeStatus">--</div>
+            <p class="metric-card__hint" id="modeHint">Operating mode</p>
+          </article>
+        </section>
+
+        <section class="controls" aria-label="System controls">
+          <div class="control-group">
+            <h2 class="control-group__title">Mode Control</h2>
+            <p class="control-group__desc">
+              AUTO mode lets the ESP32 activate the pump when soil is dry. MANUAL mode gives you direct control.
+            </p>
+            <div class="button-row">
+              <button
+                class="btn btn--mode"
+                id="btnAutoMode"
+                type="button"
+                data-mode="AUTO"
+              >
+                AUTO Mode
+              </button>
+              <button
+                class="btn btn--mode"
+                id="btnManualMode"
+                type="button"
+                data-mode="MANUAL"
+              >
+                MANUAL Mode
+              </button>
+            </div>
+          </div>
+
+          <div class="control-group">
+            <h2 class="control-group__title">Pump Control</h2>
+            <p class="control-group__desc" id="pumpControlHint">
+              Switch to MANUAL mode to control the pump from the dashboard.
+            </p>
+            <div class="button-row">
+              <button
+                class="btn btn--pump-on"
+                id="btnPumpOn"
+                type="button"
+                disabled
+              >
+                Pump ON
+              </button>
+              <button
+                class="btn btn--pump-off"
+                id="btnPumpOff"
+                type="button"
+                disabled
+              >
+                Pump OFF
+              </button>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <footer class="footer">
+        <p>Smart Sprinkler IoT System &mdash; University Project</p>
+      </footer>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+    <script src="firebase-config.js"></script>
+    <script src="script.js"></script>
+  </body>
+</html>

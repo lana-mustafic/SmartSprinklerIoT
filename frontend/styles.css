@@ -1,0 +1,426 @@
+/* ==========================================================================
+   Smart Sprinkler IoT — Dashboard Styles
+   ========================================================================== */
+
+:root {
+  --color-bg: #0f1419;
+  --color-surface: #1a2332;
+  --color-surface-raised: #243044;
+  --color-border: #2d3f56;
+  --color-text: #e8edf4;
+  --color-text-muted: #8b9cb3;
+  --color-primary: #3b9eff;
+  --color-primary-hover: #5cb0ff;
+  --color-success: #34d399;
+  --color-success-bg: rgba(52, 211, 153, 0.12);
+  --color-danger: #f87171;
+  --color-danger-bg: rgba(248, 113, 113, 0.12);
+  --color-warning: #fbbf24;
+  --color-warning-bg: rgba(251, 191, 36, 0.12);
+  --color-auto: #818cf8;
+  --color-auto-bg: rgba(129, 140, 248, 0.12);
+  --color-manual: #fb923c;
+  --color-manual-bg: rgba(251, 146, 60, 0.12);
+  --color-moisture-dry: #f87171;
+  --color-moisture-mid: #fbbf24;
+  --color-moisture-wet: #34d399;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --shadow: 0 4px 24px rgba(0, 0, 0, 0.35);
+  --transition: 0.2s ease;
+  --font: "Inter", system-ui, -apple-system, sans-serif;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font);
+  background: var(--color-bg);
+  color: var(--color-text);
+  line-height: 1.5;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* --------------------------------------------------------------------------
+   Layout
+   -------------------------------------------------------------------------- */
+
+.app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 1.25rem;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 0 1.5rem;
+  border-bottom: 1px solid var(--color-border);
+  margin-bottom: 1.5rem;
+}
+
+.header__brand {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+}
+
+.header__icon {
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--color-primary), #6366f1);
+  border-radius: var(--radius-md);
+  color: white;
+  flex-shrink: 0;
+}
+
+.header__icon svg {
+  width: 22px;
+  height: 22px;
+}
+
+.header__title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.header__subtitle {
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+  margin-top: 0.125rem;
+}
+
+.main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.footer {
+  margin-top: 2rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--color-border);
+  text-align: center;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+/* --------------------------------------------------------------------------
+   Connection Status
+   -------------------------------------------------------------------------- */
+
+.connection-status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.375rem 0.75rem;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.connection-status__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-warning);
+  animation: pulse 1.5s infinite;
+}
+
+.connection-status--connected .connection-status__dot {
+  background: var(--color-success);
+  animation: none;
+}
+
+.connection-status--disconnected .connection-status__dot {
+  background: var(--color-danger);
+  animation: none;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* --------------------------------------------------------------------------
+   Metric Cards
+   -------------------------------------------------------------------------- */
+
+.metrics {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+}
+
+@media (min-width: 640px) {
+  .metrics {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.metric-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem;
+  box-shadow: var(--shadow);
+  transition: border-color var(--transition);
+}
+
+.metric-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
+.metric-card__label {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.metric-card__icon {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-surface-raised);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-muted);
+}
+
+.metric-card__icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.metric-card__value {
+  font-size: 2.5rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+
+.metric-card__unit {
+  font-size: 1.25rem;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  margin-left: 0.125rem;
+}
+
+.metric-card__status {
+  font-size: 1.75rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.metric-card__hint {
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+  margin-top: 0.5rem;
+}
+
+/* Moisture bar */
+.moisture-bar {
+  height: 6px;
+  background: var(--color-surface-raised);
+  border-radius: 999px;
+  overflow: hidden;
+  margin-top: 0.75rem;
+}
+
+.moisture-bar__fill {
+  height: 100%;
+  width: 0%;
+  border-radius: 999px;
+  background: var(--color-moisture-wet);
+  transition: width 0.6s ease, background-color 0.4s ease;
+}
+
+/* Status color variants */
+.metric-card--pump .metric-card__status.is-on {
+  color: var(--color-success);
+}
+
+.metric-card--pump .metric-card__status.is-off {
+  color: var(--color-text-muted);
+}
+
+.metric-card--mode .metric-card__status.is-auto {
+  color: var(--color-auto);
+}
+
+.metric-card--mode .metric-card__status.is-manual {
+  color: var(--color-manual);
+}
+
+/* --------------------------------------------------------------------------
+   Controls
+   -------------------------------------------------------------------------- */
+
+.controls {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.control-group {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem;
+  box-shadow: var(--shadow);
+}
+
+.control-group__title {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 0.375rem;
+}
+
+.control-group__desc {
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+  margin-bottom: 1rem;
+}
+
+.button-row {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+/* --------------------------------------------------------------------------
+   Buttons
+   -------------------------------------------------------------------------- */
+
+.btn {
+  flex: 1;
+  min-width: 130px;
+  padding: 0.75rem 1.25rem;
+  font-family: var(--font);
+  font-size: 0.875rem;
+  font-weight: 600;
+  border: 2px solid transparent;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background var(--transition), border-color var(--transition),
+    color var(--transition), opacity var(--transition), transform 0.1s ease;
+}
+
+.btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.btn--mode {
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+  border-color: var(--color-border);
+}
+
+.btn--mode:hover:not(:disabled) {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.btn--mode.is-active[data-mode="AUTO"] {
+  background: var(--color-auto-bg);
+  border-color: var(--color-auto);
+  color: var(--color-auto);
+}
+
+.btn--mode.is-active[data-mode="MANUAL"] {
+  background: var(--color-manual-bg);
+  border-color: var(--color-manual);
+  color: var(--color-manual);
+}
+
+.btn--pump-on {
+  background: var(--color-success-bg);
+  color: var(--color-success);
+  border-color: var(--color-success);
+}
+
+.btn--pump-on:hover:not(:disabled) {
+  background: var(--color-success);
+  color: var(--color-bg);
+}
+
+.btn--pump-on.is-active {
+  background: var(--color-success);
+  color: var(--color-bg);
+}
+
+.btn--pump-off {
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+  border-color: var(--color-danger);
+}
+
+.btn--pump-off:hover:not(:disabled) {
+  background: var(--color-danger);
+  color: var(--color-bg);
+}
+
+.btn--pump-off.is-active {
+  background: var(--color-danger);
+  color: var(--color-bg);
+}
+
+/* --------------------------------------------------------------------------
+   Responsive
+   -------------------------------------------------------------------------- */
+
+@media (max-width: 480px) {
+  .header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .connection-status {
+    align-self: flex-start;
+  }
+
+  .metric-card__value {
+    font-size: 2rem;
+  }
+
+  .button-row {
+    flex-direction: column;
+  }
+
+  .btn {
+    min-width: unset;
+  }
+}
