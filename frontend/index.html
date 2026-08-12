@@ -5,9 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="Smart Sprinkler IoT Dashboard — monitor soil moisture and control the water pump."
+      content="Smart Irrigation — environmental monitoring and automated irrigation control."
     />
-    <title>Smart Sprinkler IoT</title>
+    <title>Smart Irrigation</title>
     <link rel="stylesheet" href="styles.css" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -21,13 +21,13 @@
       <header class="header">
         <div class="header__brand">
           <div class="header__icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0L12 2.69z" />
             </svg>
           </div>
           <div>
-            <h1 class="header__title">Smart Sprinkler IoT</h1>
-            <p class="header__subtitle">Soil moisture monitoring &amp; pump control</p>
+            <h1 class="header__title">Smart Irrigation</h1>
+            <p class="header__subtitle">Environmental Monitoring &amp; Automated Irrigation</p>
           </div>
         </div>
         <div class="connection-status" id="connectionStatus" role="status">
@@ -37,130 +37,217 @@
       </header>
 
       <main class="main">
-        <section class="metrics" aria-label="System metrics">
-          <article class="metric-card metric-card--moisture">
+        <!-- KPI sensor cards -->
+        <section class="metrics" aria-label="Sensor metrics">
+          <article class="metric-card metric-card--temp">
             <div class="metric-card__header">
-              <span class="metric-card__label">Soil Moisture</span>
+              <span class="metric-card__label">Temperature</span>
               <span class="metric-card__icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z" />
+                </svg>
+              </span>
+            </div>
+            <div class="metric-card__value">
+              <span id="temperatureValue">--</span>
+              <span class="metric-card__unit">°C</span>
+            </div>
+            <p class="metric-card__hint">Current temperature</p>
+          </article>
+
+          <article class="metric-card metric-card--humidity">
+            <div class="metric-card__header">
+              <span class="metric-card__label">Air Humidity</span>
+              <span class="metric-card__icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0L12 2.69z" />
                 </svg>
               </span>
             </div>
             <div class="metric-card__value">
-              <span id="moistureValue">--</span>
+              <span id="humidityValue">--</span>
               <span class="metric-card__unit">%</span>
             </div>
-            <div class="moisture-bar" aria-hidden="true">
-              <div class="moisture-bar__fill" id="moistureBar"></div>
-            </div>
-            <p class="metric-card__hint" id="moistureHint">Waiting for data…</p>
+            <p class="metric-card__hint">Relative humidity</p>
           </article>
 
-          <article class="metric-card metric-card--pump">
+          <article class="metric-card metric-card--light">
+            <div class="metric-card__header">
+              <span class="metric-card__label">Light Status</span>
+              <span class="metric-card__icon" id="lightIcon" aria-hidden="true">
+                <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="4" />
+                  <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
+                </svg>
+              </span>
+            </div>
+            <div class="metric-card__status" id="lightStatus">NO DATA</div>
+            <p class="metric-card__hint">Ambient light</p>
+          </article>
+
+          <article class="metric-card metric-card--pump" id="pumpCard">
             <div class="metric-card__header">
               <span class="metric-card__label">Pump Status</span>
               <span class="metric-card__icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <circle cx="12" cy="12" r="3" />
-                  <path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83" />
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M2 12h4l3-9 4 18 3-9h6" />
                 </svg>
               </span>
             </div>
             <div class="metric-card__status" id="pumpStatus">--</div>
-            <p class="metric-card__hint" id="pumpHint">Water pump state</p>
-          </article>
-
-          <article class="metric-card metric-card--mode">
-            <div class="metric-card__header">
-              <span class="metric-card__label">System Mode</span>
-              <span class="metric-card__icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <rect x="3" y="3" width="7" height="7" rx="1" />
-                  <rect x="14" y="3" width="7" height="7" rx="1" />
-                  <rect x="3" y="14" width="7" height="7" rx="1" />
-                  <rect x="14" y="14" width="7" height="7" rx="1" />
-                </svg>
-              </span>
-            </div>
-            <div class="metric-card__status" id="modeStatus">--</div>
-            <p class="metric-card__hint" id="modeHint">Operating mode</p>
+            <p class="metric-card__hint" id="pumpHint">Water pump</p>
           </article>
         </section>
 
+        <!-- Irrigation status + environmental conditions -->
+        <section class="status-row" aria-label="System status">
+          <article class="status-card status-card--irrigation" id="irrigationCard">
+            <div class="status-card__header">
+              <h2 class="status-card__title">Irrigation Status</h2>
+              <span class="status-card__badge" id="irrigationBadge">Waiting</span>
+            </div>
+            <p class="status-card__message" id="irrigationMessage">Waiting for ESP32 data…</p>
+            <p class="status-card__meta" id="lastUpdateLabel">Last update: —</p>
+          </article>
+
+          <article class="status-card status-card--environment">
+            <h2 class="status-card__title">Environmental Conditions</h2>
+            <div class="env-grid">
+              <div class="env-item">
+                <span class="env-item__label">Temperature</span>
+                <span class="env-item__value" id="envTemperature">-- °C</span>
+              </div>
+              <div class="env-item">
+                <span class="env-item__label">Humidity</span>
+                <span class="env-item__value" id="envHumidity">-- %</span>
+              </div>
+              <div class="env-item">
+                <span class="env-item__label">Light</span>
+                <span class="env-item__value" id="envLight">NO DATA</span>
+              </div>
+            </div>
+          </article>
+        </section>
+
+        <!-- Mode + pump controls -->
         <section class="controls" aria-label="System controls">
           <div class="control-group">
-            <h2 class="control-group__title">Mode Control</h2>
+            <h2 class="control-group__title">Mode</h2>
             <p class="control-group__desc">
-              AUTO mode lets the ESP32 activate the pump when soil is dry. MANUAL mode gives you direct control.
+              AUTO: ESP32 decides irrigation from environmental conditions.
+              MANUAL: control the pump from this dashboard.
             </p>
             <div class="button-row">
-              <button
-                class="btn btn--mode"
-                id="btnAutoMode"
-                type="button"
-                data-mode="AUTO"
-              >
-                AUTO Mode
+              <button class="btn btn--mode" id="btnAutoMode" type="button" data-mode="AUTO">
+                AUTO
               </button>
-              <button
-                class="btn btn--mode"
-                id="btnManualMode"
-                type="button"
-                data-mode="MANUAL"
-              >
-                MANUAL Mode
+              <button class="btn btn--mode" id="btnManualMode" type="button" data-mode="MANUAL">
+                MANUAL
               </button>
             </div>
+            <p class="control-group__meta" id="modeHint">Operating mode</p>
           </div>
 
-          <div class="control-group">
+          <div class="control-group" id="pumpControlGroup">
             <h2 class="control-group__title">Pump Control</h2>
             <p class="control-group__desc" id="pumpControlHint">
               Switch to MANUAL mode to control the pump from the dashboard.
             </p>
             <div class="button-row">
-              <button
-                class="btn btn--pump-on"
-                id="btnPumpOn"
-                type="button"
-                disabled
-              >
-                Pump ON
+              <button class="btn btn--pump-on" id="btnPumpOn" type="button" disabled>
+                TURN ON
               </button>
-              <button
-                class="btn btn--pump-off"
-                id="btnPumpOff"
-                type="button"
-                disabled
-              >
-                Pump OFF
+              <button class="btn btn--pump-off" id="btnPumpOff" type="button" disabled>
+                TURN OFF
               </button>
             </div>
           </div>
         </section>
 
+        <!-- Automation conditions -->
+        <section class="panel" aria-label="Automation conditions">
+          <div class="panel__header">
+            <h2 class="panel__title">Automation Conditions</h2>
+            <p class="panel__desc">
+              Planned AUTO thresholds. Indicators update from live sensor readings when available.
+              ESP32 will enforce these rules when connected.
+            </p>
+          </div>
+          <ul class="condition-list" id="conditionList">
+            <li class="condition-item" id="conditionTemp" data-met="unknown">
+              <div class="condition-item__info">
+                <span class="condition-item__name">Temperature</span>
+                <span class="condition-item__rule">&gt; 28 °C</span>
+              </div>
+              <span class="condition-item__mark" aria-label="Unknown">—</span>
+            </li>
+            <li class="condition-item" id="conditionHumidity" data-met="unknown">
+              <div class="condition-item__info">
+                <span class="condition-item__name">Air Humidity</span>
+                <span class="condition-item__rule">&lt; 40 %</span>
+              </div>
+              <span class="condition-item__mark" aria-label="Unknown">—</span>
+            </li>
+            <li class="condition-item" id="conditionLight" data-met="unknown">
+              <div class="condition-item__info">
+                <span class="condition-item__name">Light</span>
+                <span class="condition-item__rule">= DARK</span>
+              </div>
+              <span class="condition-item__mark" aria-label="Unknown">—</span>
+            </li>
+          </ul>
+        </section>
+
+        <!-- Pump activity log -->
+        <section class="panel" aria-label="Pump activity">
+          <div class="panel__header">
+            <h2 class="panel__title">Pump Activity</h2>
+            <p class="panel__desc">
+              Current state:
+              <strong id="pumpActivityState">--</strong>
+            </p>
+          </div>
+          <ul class="activity-list" id="pumpActivityList">
+            <li class="activity-list__empty" id="pumpActivityEmpty">No pump activity recorded this session.</li>
+          </ul>
+        </section>
+
+        <!-- Charts -->
         <section class="charts" aria-label="Live charts">
-          <article class="chart-card chart-card--moisture">
+          <article class="chart-card">
             <div class="chart-card__header">
-              <h2 class="chart-card__title">Soil Moisture History</h2>
+              <h2 class="chart-card__title">Temperature History</h2>
               <p class="chart-card__desc">Latest 20 readings this session</p>
             </div>
             <div class="chart-card__canvas-wrap chart-card__canvas-wrap--tall">
-              <canvas id="moistureChart" aria-label="Soil moisture line chart"></canvas>
+              <canvas id="temperatureChart" aria-label="Temperature line chart"></canvas>
             </div>
-            <p class="chart-card__hint" id="moistureChartHint">Chart updates when Firebase data changes.</p>
           </article>
 
-          <article class="chart-card chart-card--pump">
+          <article class="chart-card">
             <div class="chart-card__header">
-              <h2 class="chart-card__title">Pump Activity</h2>
-              <p class="chart-card__desc">ON/OFF changes this session</p>
+              <h2 class="chart-card__title">Humidity History</h2>
+              <p class="chart-card__desc">Latest 20 readings this session</p>
             </div>
-            <div class="last-pump-activity">
-              <span class="last-pump-activity__label">Last pump activity</span>
-              <span class="last-pump-activity__status" id="lastPumpStatus">--</span>
-              <span class="last-pump-activity__time" id="lastPumpTime">No activity recorded yet</span>
+            <div class="chart-card__canvas-wrap chart-card__canvas-wrap--tall">
+              <canvas id="humidityChart" aria-label="Humidity line chart"></canvas>
+            </div>
+          </article>
+
+          <article class="chart-card">
+            <div class="chart-card__header">
+              <h2 class="chart-card__title">Light Status</h2>
+              <p class="chart-card__desc">BRIGHT / DARK changes this session</p>
+            </div>
+            <div class="chart-card__canvas-wrap chart-card__canvas-wrap--short">
+              <canvas id="lightChart" aria-label="Light status chart"></canvas>
+            </div>
+          </article>
+
+          <article class="chart-card">
+            <div class="chart-card__header">
+              <h2 class="chart-card__title">Pump Activity Chart</h2>
+              <p class="chart-card__desc">ON / OFF changes this session</p>
             </div>
             <div class="chart-card__canvas-wrap chart-card__canvas-wrap--short">
               <canvas id="pumpChart" aria-label="Pump activity chart"></canvas>
