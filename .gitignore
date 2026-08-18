@@ -14,3 +14,5 @@ dist/
 # Environment / secrets
 .env
 firebase-config.local.js
+config.h
+SmartSprinklerIoT/config.h
