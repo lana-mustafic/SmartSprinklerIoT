@@ -6,14 +6,10 @@ import Chart from "chart.js/auto";
 
 const MAX_POINTS = 20;
 
-const temperaturePoints = [];
-const humidityPoints = [];
-const lightPoints = [];
+const moisturePoints = [];
 const pumpPoints = [];
 
-let temperatureChart = null;
-let humidityChart = null;
-let lightChart = null;
+let moistureChart = null;
 let pumpChart = null;
 
 function formatTime(date) {
@@ -39,8 +35,6 @@ function getThemeColors() {
     primary: root.getPropertyValue("--color-primary").trim() || "#3b9eff",
     success: root.getPropertyValue("--color-success").trim() || "#34d399",
     danger: root.getPropertyValue("--color-danger").trim() || "#f87171",
-    warning: root.getPropertyValue("--color-warning").trim() || "#fbbf24",
-    auto: root.getPropertyValue("--color-auto").trim() || "#818cf8",
     surface: root.getPropertyValue("--color-surface-raised").trim() || "#243044",
   };
 }
@@ -78,66 +72,6 @@ function buildChartOptions(colors, yConfig) {
       y: yConfig,
     },
   };
-}
-
-function createLineChart(canvas, label, color, fillColor, yConfig) {
-  const colors = getThemeColors();
-
-  return new Chart(canvas, {
-    type: "line",
-    data: {
-      labels: [],
-      datasets: [
-        {
-          label: label,
-          data: [],
-          borderColor: color,
-          backgroundColor: fillColor,
-          fill: true,
-          tension: 0.3,
-          pointRadius: 3,
-          pointHoverRadius: 5,
-          pointBackgroundColor: color,
-          borderWidth: 2,
-        },
-      ],
-    },
-    options: buildChartOptions(colors, yConfig),
-  });
-}
-
-function createSteppedChart(canvas, label, yTickCallback) {
-  const colors = getThemeColors();
-
-  return new Chart(canvas, {
-    type: "line",
-    data: {
-      labels: [],
-      datasets: [
-        {
-          label: label,
-          data: [],
-          borderColor: colors.success,
-          backgroundColor: "rgba(52, 211, 153, 0.12)",
-          fill: true,
-          stepped: true,
-          pointRadius: 3,
-          pointHoverRadius: 5,
-          borderWidth: 2,
-        },
-      ],
-    },
-    options: buildChartOptions(colors, {
-      min: 0,
-      max: 1,
-      grid: { color: colors.border, drawBorder: false },
-      ticks: {
-        color: colors.textMuted,
-        stepSize: 1,
-        callback: yTickCallback,
-      },
-    }),
-  });
 }
 
 function syncLineChart(chart, points, valueKey) {
@@ -194,7 +128,6 @@ function renderPumpActivityList() {
     empty.hidden = true;
   }
 
-  // Newest first
   const recent = pumpPoints.slice().reverse();
 
   recent.forEach(function (point) {
@@ -219,36 +152,30 @@ function renderPumpActivityList() {
 
 export function initCharts() {
   const colors = getThemeColors();
-  const tempCanvas = document.getElementById("temperatureChart");
-  const humidityCanvas = document.getElementById("humidityChart");
-  const lightCanvas = document.getElementById("lightChart");
+  const moistureCanvas = document.getElementById("moistureChart");
   const pumpCanvas = document.getElementById("pumpChart");
 
-  if (tempCanvas) {
-    temperatureChart = createLineChart(
-      tempCanvas,
-      "Temperature (°C)",
-      colors.warning,
-      "rgba(251, 191, 36, 0.12)",
-      {
-        grid: { color: colors.border, drawBorder: false },
-        ticks: {
-          color: colors.textMuted,
-          callback: function (value) {
-            return value + "°C";
+  if (moistureCanvas) {
+    moistureChart = new Chart(moistureCanvas, {
+      type: "line",
+      data: {
+        labels: [],
+        datasets: [
+          {
+            label: "Soil Moisture (%)",
+            data: [],
+            borderColor: colors.primary,
+            backgroundColor: "rgba(59, 158, 255, 0.12)",
+            fill: true,
+            tension: 0.3,
+            pointRadius: 3,
+            pointHoverRadius: 5,
+            pointBackgroundColor: colors.primary,
+            borderWidth: 2,
           },
-        },
-      }
-    );
-  }
-
-  if (humidityCanvas) {
-    humidityChart = createLineChart(
-      humidityCanvas,
-      "Humidity (%)",
-      colors.primary,
-      "rgba(59, 158, 255, 0.12)",
-      {
+        ],
+      },
+      options: buildChartOptions(colors, {
         min: 0,
         max: 100,
         grid: { color: colors.border, drawBorder: false },
@@ -258,55 +185,51 @@ export function initCharts() {
             return value + "%";
           },
         },
-      }
-    );
-  }
-
-  if (lightCanvas) {
-    lightChart = createSteppedChart(lightCanvas, "Light Status", function (value) {
-      if (value === 1) return "BRIGHT";
-      if (value === 0) return "DARK";
-      return "";
+      }),
     });
   }
 
   if (pumpCanvas) {
-    pumpChart = createSteppedChart(pumpCanvas, "Pump Activity", function (value) {
-      if (value === 1) return "ON";
-      if (value === 0) return "OFF";
-      return "";
+    pumpChart = new Chart(pumpCanvas, {
+      type: "line",
+      data: {
+        labels: [],
+        datasets: [
+          {
+            label: "Pump Activity",
+            data: [],
+            borderColor: colors.success,
+            backgroundColor: "rgba(52, 211, 153, 0.12)",
+            fill: true,
+            stepped: true,
+            pointRadius: 3,
+            pointHoverRadius: 5,
+            borderWidth: 2,
+          },
+        ],
+      },
+      options: buildChartOptions(colors, {
+        min: 0,
+        max: 1,
+        grid: { color: colors.border, drawBorder: false },
+        ticks: {
+          color: colors.textMuted,
+          stepSize: 1,
+          callback: function (value) {
+            if (value === 1) return "ON";
+            if (value === 0) return "OFF";
+            return "";
+          },
+        },
+      }),
     });
   }
 }
 
-export function addTemperaturePoint(time, temperature) {
-  temperaturePoints.push({ time: time, temperature: temperature });
-  trimPoints(temperaturePoints);
-  syncLineChart(temperatureChart, temperaturePoints, "temperature");
-}
-
-export function addHumidityPoint(time, humidity) {
-  humidityPoints.push({ time: time, humidity: humidity });
-  trimPoints(humidityPoints);
-  syncLineChart(humidityChart, humidityPoints, "humidity");
-}
-
-export function addLightPoint(time, lightStatus) {
-  const colors = getThemeColors();
-
-  lightPoints.push({ time: time, lightStatus: lightStatus });
-  trimPoints(lightPoints);
-
-  syncSteppedChart(
-    lightChart,
-    lightPoints,
-    function (point) {
-      return point.lightStatus === "BRIGHT" ? 1 : 0;
-    },
-    function (point) {
-      return point.lightStatus === "BRIGHT" ? colors.warning : colors.auto;
-    }
-  );
+export function addMoisturePoint(time, moisture) {
+  moisturePoints.push({ time: time, moisture: moisture });
+  trimPoints(moisturePoints);
+  syncLineChart(moistureChart, moisturePoints, "moisture");
 }
 
 export function addPumpPoint(time, pumpStatus) {
@@ -327,8 +250,4 @@ export function addPumpPoint(time, pumpStatus) {
   );
 
   renderPumpActivityList();
-}
-
-export function getPumpHistory() {
-  return pumpPoints.slice();
 }

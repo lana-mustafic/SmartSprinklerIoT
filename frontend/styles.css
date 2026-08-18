@@ -183,7 +183,7 @@ body {
 
 @media (min-width: 900px) {
   .metrics {
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(3, 1fr);
   }
 }
 
@@ -253,22 +253,32 @@ body {
   margin-top: 0.5rem;
 }
 
-.metric-card--temp .metric-card__icon {
-  color: var(--color-temp);
-}
-
-.metric-card--humidity .metric-card__icon {
+.metric-card--moisture .metric-card__icon {
   color: var(--color-humidity);
 }
 
-.metric-card--light.is-bright .metric-card__icon,
-.metric-card--light.is-bright .metric-card__status {
-  color: var(--color-light-bright);
+.moisture-bar {
+  height: 6px;
+  background: var(--color-surface-raised);
+  border-radius: 999px;
+  overflow: hidden;
+  margin-top: 0.75rem;
 }
 
-.metric-card--light.is-dark .metric-card__icon,
-.metric-card--light.is-dark .metric-card__status {
-  color: var(--color-light-dark);
+.moisture-bar__fill {
+  height: 100%;
+  width: 0%;
+  border-radius: 999px;
+  background: var(--color-success);
+  transition: width 0.6s ease, background-color 0.4s ease;
+}
+
+.metric-card--mode .metric-card__status.is-auto {
+  color: var(--color-auto);
+}
+
+.metric-card--mode .metric-card__status.is-manual {
+  color: var(--color-manual);
 }
 
 .metric-card--pump .metric-card__status.is-on {
@@ -379,6 +389,10 @@ body {
   grid-template-columns: repeat(3, 1fr);
   gap: 0.75rem;
   margin-top: 1rem;
+}
+
+.env-grid--two {
+  grid-template-columns: repeat(2, 1fr);
 }
 
 .env-item {
@@ -631,6 +645,16 @@ body {
   margin-bottom: 1rem;
 }
 
+.control-group__desc code,
+.panel__desc code,
+.chart-card__desc code {
+  font-size: 0.75em;
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  padding: 0.05em 0.35em;
+}
+
 .control-group__meta {
   font-size: 0.8125rem;
   color: var(--color-text-muted);
@@ -743,7 +767,8 @@ body {
     font-size: 1.875rem;
   }
 
-  .env-grid {
+  .env-grid,
+  .env-grid--two {
     grid-template-columns: 1fr;
   }
 
