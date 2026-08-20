@@ -347,22 +347,8 @@
     <div class="app">
       <header>
         <h1>IoT Relay Control</h1>
-        <p>ESP32 REST API + Firebase Activity Log</p>
+        <p>Kontrola preko Firebase Cloud-a</p>
       </header>
-
-      <section class="card">
-        <h2>Mrežne postavke</h2>
-        <div class="field">
-          <label for="espIp">IP adresa ESP32 uređaja</label>
-          <input
-            id="espIp"
-            type="text"
-            value="172.20.10.3"
-            placeholder="npr. 172.20.10.3"
-            autocomplete="off"
-          />
-        </div>
-      </section>
 
       <section class="card">
         <h2>Status</h2>
@@ -384,7 +370,7 @@
 
         <div class="connection">
           <span id="connDot" class="dot offline"></span>
-          <span id="connText">Čekanje veze sa ESP32…</span>
+          <span id="connText">Povezivanje na Firebase…</span>
         </div>
       </section>
 
@@ -414,14 +400,20 @@
         </ul>
       </section>
 
-      <footer>ESP32 IoT Control Panel</footer>
+      <footer>ESP32 IoT Control Panel — Firebase</footer>
     </div>
 
     <script>
+      const FIREBASE_AUTH = "9djHDyc87KmRpkPnJ2E9ydmwZtAbNouDBrZu0aZo";
+      const FIREBASE_BASE =
+        "https://sistemzalivanje-default-rtdb.europe-west1.firebasedatabase.app";
+      const FIREBASE_COMMAND_URL =
+        FIREBASE_BASE + "/command.json?auth=" + encodeURIComponent(FIREBASE_AUTH);
+      const FIREBASE_STATUS_URL =
+        FIREBASE_BASE + "/status.json?auth=" + encodeURIComponent(FIREBASE_AUTH);
       const FIREBASE_LOGS_URL =
-        "https://sistemzalivanje-default-rtdb.europe-west1.firebasedatabase.app/logs.json?auth=9djHDyc87KmRpkPnJ2E9ydmwZtAbNouDBrZu0aZo";
+        FIREBASE_BASE + "/logs.json?auth=" + encodeURIComponent(FIREBASE_AUTH);
 
-      const espIpInput = document.getElementById("espIp");
       const relayBadge = document.getElementById("relayBadge");
       const relayStatus = document.getElementById("relayStatus");
       const timerPanel = document.getElementById("timerPanel");
@@ -433,61 +425,32 @@
       const startTimerBtn = document.getElementById("startTimerBtn");
       const activityLog = document.getElementById("activityLog");
 
-      function getBaseUrl() {
-        const ip = (espIpInput.value || "").trim();
-        return "http://" + ip;
-      }
-
       function setConnection(online, message) {
         connDot.classList.toggle("online", online);
         connDot.classList.toggle("offline", !online);
         connText.textContent = message;
       }
 
-      function delay(ms) {
-        return new Promise(function (resolve) {
-          setTimeout(resolve, ms);
-        });
-      }
-
-      /**
-       * ESP32 fetch sa Chrome Private Network Access podrškom.
-       * Ako browser prikaže dijalog za lokalnu mrežu, zahtjev se ne ruši
-       * nego se automatski ponovi jednom.
-       */
-      async function fetchEsp(url) {
-        const options = {
-          method: "GET",
-          mode: "cors",
-          targetAddressSpace: "private",
-          cache: "no-store",
-        };
-
-        try {
-          return await fetch(url, options);
-        } catch (error) {
-          console.warn("ESP32 fetch greška, ponavljam zahtjev…", error);
-          await delay(800);
-
-          try {
-            return await fetch(url, options);
-          } catch (retryError) {
-            console.error("ESP32 fetch retry greška:", retryError);
-            throw retryError;
-          }
-        }
-      }
-
       function renderStatus(data) {
+        if (!data || typeof data !== "object") {
+          return;
+        }
+
         const isOn = Boolean(data.relay);
 
         relayBadge.classList.toggle("on", isOn);
         relayBadge.classList.toggle("off", !isOn);
         relayStatus.textContent = isOn ? "UKLJUČEN" : "ISKLJUČEN";
 
-        if (data.timerActive) {
+        const secondsLeft = Number(data.timerSeconds) || 0;
+        const timerActive =
+          data.timerActive === true ||
+          data.timerActive === "true" ||
+          secondsLeft > 0;
+
+        if (timerActive && secondsLeft > 0) {
           timerPanel.classList.add("active");
-          timerSeconds.textContent = Number(data.timerSeconds) || 0;
+          timerSeconds.textContent = secondsLeft;
         } else {
           timerPanel.classList.remove("active");
           timerSeconds.textContent = "0";
@@ -539,6 +502,18 @@
         });
       }
 
+      async function sendCommand(commandValue) {
+        const response = await fetch(FIREBASE_COMMAND_URL, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(commandValue),
+        });
+
+        if (!response.ok) {
+          throw new Error("Firebase command HTTP " + response.status);
+        }
+      }
+
       async function sendLogToFirebase(eventText, duration = null) {
         const logData = {
           timestamp: new Date().toLocaleString("bs-BA"),
@@ -578,7 +553,6 @@
             });
           }
 
-          // Zadnjih 5, najnoviji prvi
           const latest = logs.slice(-5).reverse();
           renderActivityLog(latest);
         } catch (error) {
@@ -590,7 +564,10 @@
 
       async function fetchStatus() {
         try {
-          const response = await fetchEsp(getBaseUrl() + "/api/status");
+          const response = await fetch(FIREBASE_STATUS_URL, {
+            method: "GET",
+            cache: "no-store",
+          });
 
           if (!response.ok) {
             throw new Error("HTTP " + response.status);
@@ -598,10 +575,10 @@
 
           const data = await response.json();
           renderStatus(data);
-          setConnection(true, "Povezano sa ESP32");
+          setConnection(true, "Povezano na Firebase");
           return data;
         } catch (error) {
-          setConnection(false, "Nema veze sa ESP32");
+          setConnection(false, "Nema veze sa Firebase");
           console.error("fetchStatus error:", error);
           return null;
         }
@@ -611,18 +588,11 @@
         toggleBtn.disabled = true;
 
         try {
-          const response = await fetchEsp(getBaseUrl() + "/api/toggle");
+          await sendCommand("TOGGLE");
+          await fetchStatus();
 
-          if (!response.ok) {
-            throw new Error("HTTP " + response.status);
-          }
-
-          const data = await fetchStatus();
-
-          if (data) {
-            const eventName = Boolean(data.relay) ? "Uključeno" : "Isključeno";
-            await sendLogToFirebase(eventName);
-          }
+          const isOn = relayBadge.classList.contains("on");
+          await sendLogToFirebase(isOn ? "Uključeno" : "Isključeno");
         } catch (error) {
           setConnection(false, "Greška pri toggle komandi");
           console.error("toggleRelay error:", error);
@@ -637,14 +607,7 @@
         startTimerBtn.disabled = true;
 
         try {
-          const response = await fetchEsp(
-            getBaseUrl() + "/api/start-timer?sec=" + encodeURIComponent(seconds)
-          );
-
-          if (!response.ok) {
-            throw new Error("HTTP " + response.status);
-          }
-
+          await sendCommand("TIMER_" + seconds);
           await fetchStatus();
           await sendLogToFirebase("Tajmer pokrenut", seconds);
         } catch (error) {
@@ -660,7 +623,7 @@
 
       fetchStatus();
       fetchFirebaseLogs();
-      setInterval(fetchStatus, 1000);
+      setInterval(fetchStatus, 2000);
     </script>
   </body>
 </html>

@@ -1,5 +1,5 @@
 #include <WiFi.h>
-#include <WebServer.h>
+#include <HTTPClient.h>
 #include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
@@ -12,7 +12,10 @@
 #define RELAY_PIN 19
 #define BUTTON_PIN 0
 
-WebServer server(80);
+// Firebase REST API URL-ovi
+const String FIREBASE_HOST = "https://sistemzalivanje-default-rtdb.europe-west1.firebasedatabase.app";
+const String FIREBASE_AUTH = "9djHDyc87KmRpkPnJ2E9ydmwZtAbNouDBrZu0aZo";
+
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
 
 bool relayState = false;
@@ -22,6 +25,9 @@ bool timerActive = false;
 unsigned long timerEndTime = 0;
 int timerSecondsRemaining = 0;
 
+unsigned long lastFirebasePoll = 0;
+const long pollInterval = 1500; // Provjerava Firebase svakih 1.5 sekundi
+
 void updateDisplay() {
   display.clearDisplay();
   display.setTextWrap(false);
@@ -30,10 +36,9 @@ void updateDisplay() {
   display.setTextSize(1);
   display.setCursor(0, 0);
   if (WiFi.status() == WL_CONNECTED) {
-    display.print("IP: ");
-    display.println(WiFi.localIP());
+    display.print("CLOUD: Povezano");
   } else {
-    display.println("Spajanje na Wi-Fi...");
+    display.print("Spajanje na Wi-Fi...");
   }
   display.drawFastHLine(0, 10, 128, SSD1306_WHITE);
 
@@ -59,44 +64,64 @@ void updateDisplay() {
   display.display();
 }
 
-// REST API ENDPOINTI (Bez duplih setCORS poziva)
-
-void handleApiStatus() {
-  server.sendHeader("Access-Control-Allow-Origin", "*");
-  String json = "{\"relay\":" + String(relayState ? "true" : "false") + 
-                ",\"timerActive\":" + String(timerActive ? "true" : "false") + 
-                ",\"timerSeconds\":" + String(timerSecondsRemaining) + "}";
-  server.send(200, "application/json", json);
+void syncStateToFirebase() {
+  if (WiFi.status() == WL_CONNECTED) {
+    HTTPClient http;
+    String url = FIREBASE_HOST + "/status.json?auth=" + FIREBASE_AUTH;
+    http.begin(url);
+    http.addHeader("Content-Type", "application/json");
+    
+    String json = "{\"relay\":" + String(relayState ? "true" : "false") + 
+                  ",\"timerActive\":" + String(timerActive ? "true" : "false") + 
+                  ",\"timerSeconds\":" + String(timerSecondsRemaining) + "}";
+                  
+    http.PUT(json);
+    http.end();
+  }
 }
 
-void handleApiToggle() {
-  server.sendHeader("Access-Control-Allow-Origin", "*");
-  relayState = !relayState;
-  timerActive = false;
-  digitalWrite(RELAY_PIN, relayState ? LOW : HIGH);
-  updateDisplay();
-  handleApiStatus();
-}
+void checkFirebaseCommands() {
+  if (WiFi.status() != WL_CONNECTED) return;
 
-void handleApiStartTimer() {
-  server.sendHeader("Access-Control-Allow-Origin", "*");
-  if (server.hasArg("sec")) {
-    int sec = server.arg("sec").toInt();
-    if (sec > 0) {
-      timerSecondsRemaining = sec;
-      timerEndTime = millis() + (sec * 1000);
-      timerActive = true;
+  HTTPClient http;
+  String url = FIREBASE_HOST + "/command.json?auth=" + FIREBASE_AUTH;
+  http.begin(url);
+  
+  int httpCode = http.GET();
+  if (httpCode == HTTP_CODE_OK) {
+    String payload = http.getString();
+    payload.trim();
+
+    if (payload != "null" && payload != "\"NONE\"") {
+      // Obrada komandi
+      if (payload == "\"TOGGLE\"") {
+        relayState = !relayState;
+        timerActive = false;
+        digitalWrite(RELAY_PIN, relayState ? LOW : HIGH);
+      } else if (payload.startsWith("\"TIMER_")) {
+        // Format komande: "TIMER_30"
+        int sec = payload.substring(7, payload.length() - 1).toInt();
+        if (sec > 0) {
+          timerSecondsRemaining = sec;
+          timerEndTime = millis() + (sec * 1000);
+          timerActive = true;
+          relayState = true;
+          digitalWrite(RELAY_PIN, LOW);
+        }
+      }
+
+      // Ocisti komandu na Firebase-u nakon sto je izvrsena
+      HTTPClient clearHttp;
+      clearHttp.begin(FIREBASE_HOST + "/command.json?auth=" + FIREBASE_AUTH);
+      clearHttp.addHeader("Content-Type", "application/json");
+      clearHttp.PUT("\"NONE\"");
+      clearHttp.end();
+
       updateDisplay();
+      syncStateToFirebase();
     }
   }
-  handleApiStatus();
-}
-
-void handleOptions() {
-  server.sendHeader("Access-Control-Allow-Origin", "*");
-  server.sendHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-  server.sendHeader("Access-Control-Allow-Headers", "*");
-  server.send(204);
+  http.end();
 }
 
 void setup() {
@@ -118,24 +143,19 @@ void setup() {
   }
 
   Serial.println("\nSpojeno na Hotspot!");
-  Serial.print("IP Adresa: ");
-  Serial.println(WiFi.localIP());
-
-  server.on("/api/status", HTTP_GET, handleApiStatus);
-  server.on("/api/toggle", HTTP_GET, handleApiToggle);
-  server.on("/api/start-timer", HTTP_GET, handleApiStartTimer);
-  
-  server.on("/api/status", HTTP_OPTIONS, handleOptions);
-  server.on("/api/toggle", HTTP_OPTIONS, handleOptions);
-  server.on("/api/start-timer", HTTP_OPTIONS, handleOptions);
-
-  server.begin();
   updateDisplay();
+  syncStateToFirebase();
 }
 
 void loop() {
-  server.handleClient();
+  // Povremena provjera komandi sa Firebase-a
+  if (millis() - lastFirebasePoll >= pollInterval) {
+    lastFirebasePoll = millis();
+    checkFirebaseCommands();
+    syncStateToFirebase();
+  }
 
+  // Logika tajmera
   if (timerActive) {
     long remaining = (timerEndTime - millis()) / 1000;
     if (remaining <= 0) {
@@ -143,12 +163,14 @@ void loop() {
       relayState = false;
       digitalWrite(RELAY_PIN, HIGH);
       updateDisplay();
+      syncStateToFirebase();
     } else if (remaining != timerSecondsRemaining) {
       timerSecondsRemaining = remaining;
       updateDisplay();
     }
   }
 
+  // Fizicko dugme na ESP32
   bool currentButtonState = digitalRead(BUTTON_PIN);
   if (lastButtonState == HIGH && currentButtonState == LOW) {
     delay(50);
@@ -156,6 +178,7 @@ void loop() {
     timerActive = false;
     digitalWrite(RELAY_PIN, relayState ? LOW : HIGH);
     updateDisplay();
+    syncStateToFirebase();
   }
   lastButtonState = currentButtonState;
 }
