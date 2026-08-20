@@ -1,109 +1,171 @@
 #include <WiFi.h>
-#include <FirebaseESP32.h>
-#include "config.h" // Učitava tajne podatke (WIFI_SSID, WIFI_PASSWORD, FIREBASE_HOST, FIREBASE_AUTH) iz lokalnog fajla
+#include <WebServer.h>
+#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
 
-// ==========================================
-// DEFINISANJE PINOVA I PROMJENLJIVIH
-// ==========================================
-#define RELAY_PIN 26   // Pin na koji je spojen IN1 releja
+// Uključujemo konfiguracijski fajl sa Wi-Fi podacima
+#include "config.h"
 
-FirebaseData firebaseData;
-FirebaseAuth auth;
-FirebaseConfig config;
+#define SCREEN_WIDTH 128
+#define SCREEN_HEIGHT 64
 
-int soilMoisture = 35;      // Početna simulirana vlažnost u %
-bool isAutoMode = true;     // Podrazumijevano AUTO mod
-bool manualPumpState = false;
+#define RELAY_PIN 19
+#define BUTTON_PIN 0
 
-unsigned long previousMillis = 0;
-const long interval = 3000; // Očitavanje i slanje na Firebase svakih 3 sekunde
+WebServer server(80);
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
+
+bool relayState = false;
+bool lastButtonState = HIGH;
+
+// Varijable za tajmer
+bool timerActive = false;
+unsigned long timerEndTime = 0;
+int timerSecondsRemaining = 0;
+
+void updateDisplay() {
+  display.clearDisplay();
+  display.setTextSize(1);
+  display.setTextColor(SSD1306_WHITE);
+  
+  // Prikaz IP adrese na vrhu ekrana
+  display.setCursor(0, 0);
+  if (WiFi.status() == WL_CONNECTED) {
+    display.print("IP:");
+    display.println(WiFi.localIP());
+  } else {
+    display.println("Spajanje na Wi-Fi...");
+  }
+  display.drawFastHLine(0, 10, 128, SSD1306_WHITE);
+
+  if (timerActive) {
+    display.setCursor(10, 20);
+    display.print("TAJMER AKTIVAN:");
+    display.setTextSize(2);
+    display.setCursor(45, 38);
+    display.print(timerSecondsRemaining);
+    display.println("s");
+  } else {
+    display.setCursor(15, 20);
+    display.print("STATUS RELEJA:");
+    display.setTextSize(2);
+    display.setCursor(10, 38);
+    if (relayState) {
+      display.println("[ UKLJUČEN ]");
+    } else {
+      display.println("[ ISKLJUČEN ]");
+    }
+  }
+  display.display();
+}
+
+// Omogućavanje CORS-a za GitHub Pages
+void setCORS() {
+  server.sendHeader("Access-Control-Allow-Origin", "*");
+  server.sendHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  server.sendHeader("Access-Control-Allow-Headers", "*");
+}
+
+// REST API ENDPOINTI
+
+void handleApiStatus() {
+  setCORS();
+  String json = "{";
+  json += "\"relay\":" + String(relayState ? "true" : "false") + ",";
+  json += "\"timerActive\":" + String(timerActive ? "true" : "false") + ",";
+  json += "\"timerSeconds\":" + String(timerSecondsRemaining);
+  json += "}";
+  server.send(200, "application/json", json);
+}
+
+void handleApiToggle() {
+  setCORS();
+  relayState = !relayState;
+  timerActive = false;
+  digitalWrite(RELAY_PIN, relayState ? LOW : HIGH);
+  updateDisplay();
+  handleApiStatus();
+}
+
+void handleApiStartTimer() {
+  setCORS();
+  if (server.hasArg("sec")) {
+    int sec = server.arg("sec").toInt();
+    if (sec > 0) {
+      timerSecondsRemaining = sec;
+      timerEndTime = millis() + (sec * 1000);
+      timerActive = true;
+      updateDisplay();
+    }
+  }
+  handleApiStatus();
+}
+
+void handleOptions() {
+  setCORS();
+  server.send(204);
+}
 
 void setup() {
   Serial.begin(115200);
-  
-  // Relej pin postavka (Active LOW - HIGH znači isključeno)
-  pinMode(RELAY_PIN, OUTPUT);
-  digitalWrite(RELAY_PIN, HIGH); 
 
-  // Povezivanje na Wi-Fi
-  Serial.print("Povezivanje na Wi-Fi: ");
-  Serial.println(WIFI_SSID);
+  pinMode(RELAY_PIN, OUTPUT);
+  pinMode(BUTTON_PIN, INPUT_PULLUP);
+  digitalWrite(RELAY_PIN, HIGH);
+
+  Wire.begin(21, 22);
+  display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
+  
+  updateDisplay();
+
+  // Spajanje na Wi-Fi koristeći varijable iz config.h
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-  
   while (WiFi.status() != WL_CONNECTED) {
-    Serial.print(".");
     delay(500);
+    Serial.print(".");
   }
-  
-  Serial.println("\nUspješno povezano na Wi-Fi!");
+
+  Serial.println("\nSpojeno na Hotspot!");
   Serial.print("IP Adresa: ");
   Serial.println(WiFi.localIP());
 
-  // Povezivanje na Firebase
-  config.host = FIREBASE_HOST;
-  config.signer.tokens.legacy_token = FIREBASE_AUTH;
+  // Rutiranje API zahtjeva
+  server.on("/api/status", HTTP_GET, handleApiStatus);
+  server.on("/api/toggle", HTTP_GET, handleApiToggle);
+  server.on("/api/start-timer", HTTP_GET, handleApiStartTimer);
+  
+  server.on("/api/status", HTTP_OPTIONS, handleOptions);
+  server.on("/api/toggle", HTTP_OPTIONS, handleOptions);
+  server.on("/api/start-timer", HTTP_OPTIONS, handleOptions);
 
-  Firebase.begin(&config, &auth);
-  Firebase.reconnectWiFi(true);
-
-  Serial.println("Firebase konekcija uspostavljena!");
+  server.begin();
+  updateDisplay();
 }
 
 void loop() {
-  unsigned long currentMillis = millis();
+  server.handleClient();
 
-  if (currentMillis - previousMillis >= interval) {
-    previousMillis = currentMillis;
-
-    // 1. Čitanje komandi sa Firebase-a
-    if (Firebase.getBool(firebaseData, "/system/auto_mode")) {
-      isAutoMode = firebaseData.boolData();
+  if (timerActive) {
+    long remaining = (timerEndTime - millis()) / 1000;
+    if (remaining <= 0) {
+      timerActive = false;
+      relayState = true;
+      digitalWrite(RELAY_PIN, LOW);
+      updateDisplay();
+    } else if (remaining != timerSecondsRemaining) {
+      timerSecondsRemaining = remaining;
+      updateDisplay();
     }
-    if (Firebase.getBool(firebaseData, "/system/manual_pump")) {
-      manualPumpState = firebaseData.boolData();
-    }
-
-    // 2. Logika rada pumpe i simulacije vlažnosti
-    if (isAutoMode) {
-      // --- AUTOMATSKI MOD ---
-      // Simulacija: ako pumpa radi vlaga raste, ako ne radi vlaga opada
-      if (digitalRead(RELAY_PIN) == LOW) { // Relej uključen (LOW)
-        soilMoisture += 5;
-        if (soilMoisture > 80) soilMoisture = 80;
-      } else { // Relej isključen (HIGH)
-        soilMoisture -= 2;
-        if (soilMoisture < 20) soilMoisture = 20;
-      }
-
-      // Ako je zemlja suha (< 40%), automatski uključi pumpu
-      if (soilMoisture < 40) {
-        digitalWrite(RELAY_PIN, LOW);  // PUMPA ON
-        Firebase.setBool(firebaseData, "/system/pump_status", true);
-      } else {
-        digitalWrite(RELAY_PIN, HIGH); // PUMPA OFF
-        Firebase.setBool(firebaseData, "/system/pump_status", false);
-      }
-
-    } else {
-      // --- RUČNI (MANUAL) MOD ---
-      if (manualPumpState) {
-        digitalWrite(RELAY_PIN, LOW);  // PUMPA ON
-        Firebase.setBool(firebaseData, "/system/pump_status", true);
-      } else {
-        digitalWrite(RELAY_PIN, HIGH); // PUMPA OFF
-        Firebase.setBool(firebaseData, "/system/pump_status", false);
-      }
-    }
-
-    // 3. Slanje stanja vlažnosti u Firebase
-    Firebase.setInt(firebaseData, "/sensors/moisture", soilMoisture);
-
-    // Ispis u Serial Monitor radi praćenja
-    Serial.print("MOD: ");
-    Serial.print(isAutoMode ? "AUTO" : "MANUAL");
-    Serial.print(" | Vlažnost: ");
-    Serial.print(soilMoisture);
-    Serial.print("% | Pumpa: ");
-    Serial.println((digitalRead(RELAY_PIN) == LOW) ? "UKLJUČENA" : "ISKLJUČENA");
   }
+
+  bool currentButtonState = digitalRead(BUTTON_PIN);
+  if (lastButtonState == HIGH && currentButtonState == LOW) {
+    delay(50);
+    relayState = !relayState;
+    timerActive = false;
+    digitalWrite(RELAY_PIN, relayState ? LOW : HIGH);
+    updateDisplay();
+  }
+  lastButtonState = currentButtonState;
 }
