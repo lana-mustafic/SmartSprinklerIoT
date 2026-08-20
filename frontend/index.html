@@ -418,11 +418,8 @@
     </div>
 
     <script>
-      const FIREBASE_DB_URL =
-        "https://sistemzalivanje-default-rtdb.europe-west1.firebasedatabase.app";
-      const FIREBASE_AUTH = "9djHDyc87KmRpkPnJ2E9ydmwZtAbNouDBrZu0aZo";
       const FIREBASE_LOGS_URL =
-        FIREBASE_DB_URL + "/logs.json?auth=" + encodeURIComponent(FIREBASE_AUTH);
+        "https://sistemzalivanje-default-rtdb.europe-west1.firebasedatabase.app/logs.json?auth=9djHDyc87KmRpkPnJ2E9ydmwZtAbNouDBrZu0aZo";
 
       const espIpInput = document.getElementById("espIp");
       const relayBadge = document.getElementById("relayBadge");
@@ -436,8 +433,6 @@
       const startTimerBtn = document.getElementById("startTimerBtn");
       const activityLog = document.getElementById("activityLog");
 
-      let lastKnownRelay = null;
-
       function getBaseUrl() {
         const ip = (espIpInput.value || "").trim();
         return "http://" + ip;
@@ -447,23 +442,6 @@
         connDot.classList.toggle("online", online);
         connDot.classList.toggle("offline", !online);
         connText.textContent = message;
-      }
-
-      function formatTimestamp(value) {
-        const date = value ? new Date(value) : new Date();
-
-        if (isNaN(date.getTime())) {
-          return String(value);
-        }
-
-        return date.toLocaleString("bs-BA", {
-          day: "2-digit",
-          month: "2-digit",
-          year: "numeric",
-          hour: "2-digit",
-          minute: "2-digit",
-          second: "2-digit",
-        });
       }
 
       function renderStatus(data) {
@@ -501,9 +479,9 @@
           eventEl.className = "event";
           eventEl.textContent = entry.event || "Nepoznat događaj";
 
-          if (entry.event === "Uključen") {
+          if (entry.event === "Uključeno") {
             eventEl.classList.add("on");
-          } else if (entry.event === "Isključen") {
+          } else if (entry.event === "Isključeno") {
             eventEl.classList.add("off");
           } else if (entry.event === "Tajmer pokrenut") {
             eventEl.classList.add("timer");
@@ -511,15 +489,15 @@
 
           const metaEl = document.createElement("div");
           metaEl.className = "meta";
-          metaEl.textContent = formatTimestamp(entry.timestamp);
+          metaEl.textContent = entry.timestamp || "";
 
           li.appendChild(eventEl);
           li.appendChild(metaEl);
 
-          if (entry.duration !== undefined && entry.duration !== null && entry.duration !== "") {
+          if (entry.duration !== undefined && entry.duration !== null) {
             const durationEl = document.createElement("div");
             durationEl.className = "duration";
-            durationEl.textContent = "Trajanje: " + entry.duration + " s";
+            durationEl.textContent = "Trajanje: " + entry.duration;
             li.appendChild(durationEl);
           }
 
@@ -527,40 +505,28 @@
         });
       }
 
-      async function pushFirebaseLog(eventName, duration) {
-        const payload = {
-          timestamp: new Date().toISOString(),
-          event: eventName,
+      async function sendLogToFirebase(eventText, duration = null) {
+        const logData = {
+          timestamp: new Date().toLocaleString("bs-BA"),
+          event: eventText,
+          duration: duration ? `${duration}s` : "N/A",
         };
 
-        if (duration !== undefined && duration !== null) {
-          payload.duration = Number(duration);
+        try {
+          await fetch(FIREBASE_LOGS_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(logData),
+          });
+          fetchFirebaseLogs();
+        } catch (err) {
+          console.error("Firebase greška:", err);
         }
-
-        const response = await fetch(FIREBASE_LOGS_URL, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(payload),
-        });
-
-        if (!response.ok) {
-          throw new Error("Firebase POST HTTP " + response.status);
-        }
-
-        return response.json();
       }
 
-      async function fetchActivityLogs() {
+      async function fetchFirebaseLogs() {
         try {
-          const url =
-            FIREBASE_DB_URL +
-            '/logs.json?auth=' +
-            encodeURIComponent(FIREBASE_AUTH) +
-            '&orderBy="$key"&limitToLast=5';
-
-          const response = await fetch(url, {
+          const response = await fetch(FIREBASE_LOGS_URL, {
             method: "GET",
             cache: "no-store",
           });
@@ -578,22 +544,13 @@
             });
           }
 
-          // Najnoviji prvi
-          logs.reverse();
-          renderActivityLog(logs);
+          // Zadnjih 5, najnoviji prvi
+          const latest = logs.slice(-5).reverse();
+          renderActivityLog(latest);
         } catch (error) {
-          console.error("fetchActivityLogs error:", error);
+          console.error("fetchFirebaseLogs error:", error);
           activityLog.innerHTML =
             '<li class="log-error">Neuspješno učitavanje Firebase logova.</li>';
-        }
-      }
-
-      async function logEventAndRefresh(eventName, duration) {
-        try {
-          await pushFirebaseLog(eventName, duration);
-          await fetchActivityLogs();
-        } catch (error) {
-          console.error("Firebase log error:", error);
         }
       }
 
@@ -611,7 +568,6 @@
           const data = await response.json();
           renderStatus(data);
           setConnection(true, "Povezano sa ESP32");
-          lastKnownRelay = Boolean(data.relay);
           return data;
         } catch (error) {
           setConnection(false, "Nema veze sa ESP32");
@@ -636,8 +592,8 @@
           const data = await fetchStatus();
 
           if (data) {
-            const eventName = Boolean(data.relay) ? "Uključen" : "Isključen";
-            await logEventAndRefresh(eventName);
+            const eventName = Boolean(data.relay) ? "Uključeno" : "Isključeno";
+            await sendLogToFirebase(eventName);
           }
         } catch (error) {
           setConnection(false, "Greška pri toggle komandi");
@@ -666,7 +622,7 @@
           }
 
           await fetchStatus();
-          await logEventAndRefresh("Tajmer pokrenut", seconds);
+          await sendLogToFirebase("Tajmer pokrenut", seconds);
         } catch (error) {
           setConnection(false, "Greška pri pokretanju tajmera");
           console.error("startTimer error:", error);
@@ -679,7 +635,7 @@
       startTimerBtn.addEventListener("click", startTimer);
 
       fetchStatus();
-      fetchActivityLogs();
+      fetchFirebaseLogs();
       setInterval(fetchStatus, 1000);
     </script>
   </body>
