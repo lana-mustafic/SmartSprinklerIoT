@@ -1,217 +1,686 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="bs">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta
-      name="description"
-      content="Smart Irrigation — environmental monitoring and automated irrigation control."
-    />
-    <title>Smart Irrigation</title>
-    <link rel="stylesheet" href="styles.css" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
-      rel="stylesheet"
-    />
+    <title>IoT Relay Control</title>
+    <style>
+      :root {
+        --bg: #0b1220;
+        --bg-elevated: #121a2b;
+        --card: #162033;
+        --card-border: #243247;
+        --text: #e8eef8;
+        --muted: #8ea0b8;
+        --accent: #3b9eff;
+        --accent-hover: #5cb0ff;
+        --on: #22c55e;
+        --on-bg: rgba(34, 197, 94, 0.14);
+        --off: #ef4444;
+        --off-bg: rgba(239, 68, 68, 0.14);
+        --warning: #f59e0b;
+        --warning-bg: rgba(245, 158, 11, 0.14);
+        --radius: 16px;
+        --shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+        --font: "Segoe UI", system-ui, -apple-system, sans-serif;
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        min-height: 100vh;
+        font-family: var(--font);
+        background:
+          radial-gradient(circle at top right, rgba(59, 158, 255, 0.12), transparent 28%),
+          radial-gradient(circle at bottom left, rgba(34, 197, 94, 0.08), transparent 30%),
+          var(--bg);
+        color: var(--text);
+        padding: 1.25rem;
+        line-height: 1.5;
+      }
+
+      .app {
+        width: min(720px, 100%);
+        margin: 0 auto;
+      }
+
+      header {
+        margin-bottom: 1.25rem;
+      }
+
+      header h1 {
+        font-size: clamp(1.5rem, 4vw, 2rem);
+        font-weight: 700;
+        letter-spacing: -0.03em;
+      }
+
+      header p {
+        color: var(--muted);
+        margin-top: 0.25rem;
+        font-size: 0.95rem;
+      }
+
+      .card {
+        background: var(--card);
+        border: 1px solid var(--card-border);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+        padding: 1.25rem;
+        margin-bottom: 1rem;
+      }
+
+      .card h2 {
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--muted);
+        margin-bottom: 1rem;
+      }
+
+      .field {
+        display: flex;
+        flex-direction: column;
+        gap: 0.45rem;
+      }
+
+      label {
+        font-size: 0.875rem;
+        color: var(--muted);
+      }
+
+      input {
+        width: 100%;
+        padding: 0.85rem 1rem;
+        border-radius: 12px;
+        border: 1px solid var(--card-border);
+        background: var(--bg-elevated);
+        color: var(--text);
+        font: inherit;
+        outline: none;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+      }
+
+      input:focus {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px rgba(59, 158, 255, 0.18);
+      }
+
+      .status-grid {
+        display: grid;
+        gap: 1rem;
+      }
+
+      .relay-badge {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 1.1rem 1.2rem;
+        border-radius: 14px;
+        border: 1px solid transparent;
+        transition: background 0.25s ease, border-color 0.25s ease, color 0.25s ease;
+      }
+
+      .relay-badge.on {
+        background: var(--on-bg);
+        border-color: rgba(34, 197, 94, 0.45);
+        color: var(--on);
+      }
+
+      .relay-badge.off {
+        background: var(--off-bg);
+        border-color: rgba(239, 68, 68, 0.45);
+        color: var(--off);
+      }
+
+      .relay-badge .label {
+        font-size: 0.9rem;
+        color: var(--muted);
+      }
+
+      .relay-badge .value {
+        font-size: clamp(1.4rem, 4vw, 1.8rem);
+        font-weight: 800;
+        letter-spacing: 0.02em;
+      }
+
+      .timer-panel {
+        display: none;
+        padding: 1rem 1.15rem;
+        border-radius: 14px;
+        background: var(--warning-bg);
+        border: 1px solid rgba(245, 158, 11, 0.4);
+      }
+
+      .timer-panel.active {
+        display: block;
+      }
+
+      .timer-panel .title {
+        color: var(--warning);
+        font-size: 0.85rem;
+        font-weight: 600;
+        margin-bottom: 0.35rem;
+      }
+
+      .timer-panel .seconds {
+        font-size: 2rem;
+        font-weight: 800;
+        color: var(--text);
+      }
+
+      .timer-panel .seconds span {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--muted);
+        margin-left: 0.25rem;
+      }
+
+      .connection {
+        margin-top: 0.9rem;
+        font-size: 0.85rem;
+        color: var(--muted);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+
+      .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--muted);
+      }
+
+      .dot.online {
+        background: var(--on);
+      }
+
+      .dot.offline {
+        background: var(--off);
+      }
+
+      .controls {
+        display: grid;
+        gap: 1rem;
+      }
+
+      .btn {
+        width: 100%;
+        border: none;
+        border-radius: 12px;
+        padding: 0.95rem 1.1rem;
+        font: inherit;
+        font-weight: 700;
+        cursor: pointer;
+        transition: transform 0.12s ease, opacity 0.2s ease, background 0.2s ease;
+      }
+
+      .btn:active {
+        transform: scale(0.98);
+      }
+
+      .btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      .btn-toggle {
+        background: linear-gradient(135deg, #2563eb, #3b9eff);
+        color: white;
+      }
+
+      .btn-toggle:hover:not(:disabled) {
+        background: linear-gradient(135deg, #1d4ed8, var(--accent-hover));
+      }
+
+      .timer-row {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 0.75rem;
+        align-items: end;
+      }
+
+      .btn-timer {
+        background: #243044;
+        color: var(--text);
+        border: 1px solid var(--card-border);
+        white-space: nowrap;
+        min-width: 120px;
+      }
+
+      .btn-timer:hover:not(:disabled) {
+        border-color: var(--accent);
+        color: var(--accent);
+      }
+
+      .log-list {
+        list-style: none;
+        display: flex;
+        flex-direction: column;
+        gap: 0.65rem;
+      }
+
+      .log-item {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 0.5rem 1rem;
+        padding: 0.85rem 1rem;
+        border-radius: 12px;
+        background: var(--bg-elevated);
+        border: 1px solid var(--card-border);
+      }
+
+      .log-item .event {
+        font-weight: 700;
+      }
+
+      .log-item .event.on {
+        color: var(--on);
+      }
+
+      .log-item .event.off {
+        color: var(--off);
+      }
+
+      .log-item .event.timer {
+        color: var(--warning);
+      }
+
+      .log-item .meta {
+        font-size: 0.8rem;
+        color: var(--muted);
+      }
+
+      .log-item .duration {
+        grid-column: 1 / -1;
+        font-size: 0.85rem;
+        color: var(--muted);
+      }
+
+      .log-empty,
+      .log-error {
+        color: var(--muted);
+        font-size: 0.9rem;
+        padding: 0.5rem 0;
+      }
+
+      .log-error {
+        color: var(--off);
+      }
+
+      footer {
+        margin-top: 1.5rem;
+        text-align: center;
+        color: var(--muted);
+        font-size: 0.8rem;
+      }
+
+      @media (max-width: 560px) {
+        body {
+          padding: 1rem;
+        }
+
+        .card {
+          padding: 1rem;
+        }
+
+        .timer-row {
+          grid-template-columns: 1fr;
+        }
+
+        .btn-timer {
+          width: 100%;
+        }
+
+        .log-item {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
   </head>
   <body>
     <div class="app">
-      <header class="header">
-        <div class="header__brand">
-          <div class="header__icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0L12 2.69z" />
-            </svg>
-          </div>
-          <div>
-            <h1 class="header__title">Smart Irrigation</h1>
-            <p class="header__subtitle">Environmental Monitoring &amp; Automated Irrigation</p>
-          </div>
-        </div>
-        <div class="connection-status" id="connectionStatus" role="status">
-          <span class="connection-status__dot"></span>
-          <span class="connection-status__label">Connecting…</span>
-        </div>
+      <header>
+        <h1>IoT Relay Control</h1>
+        <p>ESP32 REST API + Firebase Activity Log</p>
       </header>
 
-      <main class="main">
-        <section class="metrics" aria-label="Sensor metrics">
-          <article class="metric-card metric-card--moisture">
-            <div class="metric-card__header">
-              <span class="metric-card__label">Soil Moisture</span>
-              <span class="metric-card__icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0L12 2.69z" />
-                </svg>
-              </span>
-            </div>
-            <div class="metric-card__value">
-              <span id="moistureValue">--</span>
-              <span class="metric-card__unit">%</span>
-            </div>
-            <div class="moisture-bar" aria-hidden="true">
-              <div class="moisture-bar__fill" id="moistureBar"></div>
-            </div>
-            <p class="metric-card__hint" id="moistureHint">Waiting for data…</p>
-          </article>
+      <section class="card">
+        <h2>Mrežne postavke</h2>
+        <div class="field">
+          <label for="espIp">IP adresa ESP32 uređaja</label>
+          <input
+            id="espIp"
+            type="text"
+            value="172.20.10.3"
+            placeholder="npr. 172.20.10.3"
+            autocomplete="off"
+          />
+        </div>
+      </section>
 
-          <article class="metric-card metric-card--mode">
-            <div class="metric-card__header">
-              <span class="metric-card__label">Mode</span>
-              <span class="metric-card__icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <rect x="3" y="3" width="7" height="7" rx="1" />
-                  <rect x="14" y="3" width="7" height="7" rx="1" />
-                  <rect x="3" y="14" width="7" height="7" rx="1" />
-                  <rect x="14" y="14" width="7" height="7" rx="1" />
-                </svg>
-              </span>
+      <section class="card">
+        <h2>Status</h2>
+        <div class="status-grid">
+          <div id="relayBadge" class="relay-badge off" aria-live="polite">
+            <div>
+              <div class="label">Stanje releja</div>
+              <div id="relayStatus" class="value">ISKLJUČEN</div>
             </div>
-            <div class="metric-card__status" id="modeStatus">--</div>
-            <p class="metric-card__hint" id="modeCardHint">Operating mode</p>
-          </article>
-
-          <article class="metric-card metric-card--pump" id="pumpCard">
-            <div class="metric-card__header">
-              <span class="metric-card__label">Pump Status</span>
-              <span class="metric-card__icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M2 12h4l3-9 4 18 3-9h6" />
-                </svg>
-              </span>
-            </div>
-            <div class="metric-card__status" id="pumpStatus">--</div>
-            <p class="metric-card__hint" id="pumpHint">Water pump</p>
-          </article>
-        </section>
-
-        <section class="status-row" aria-label="System status">
-          <article class="status-card status-card--irrigation" id="irrigationCard">
-            <div class="status-card__header">
-              <h2 class="status-card__title">Irrigation Status</h2>
-              <span class="status-card__badge" id="irrigationBadge">Waiting</span>
-            </div>
-            <p class="status-card__message" id="irrigationMessage">Waiting for ESP32 data…</p>
-            <p class="status-card__meta" id="lastUpdateLabel">Last update: —</p>
-          </article>
-
-          <article class="status-card status-card--environment">
-            <h2 class="status-card__title">Current Readings</h2>
-            <div class="env-grid env-grid--two">
-              <div class="env-item">
-                <span class="env-item__label">Moisture</span>
-                <span class="env-item__value" id="envMoisture">-- %</span>
-              </div>
-              <div class="env-item">
-                <span class="env-item__label">Pump</span>
-                <span class="env-item__value" id="envPump">--</span>
-              </div>
-            </div>
-          </article>
-        </section>
-
-        <section class="controls" aria-label="System controls">
-          <div class="control-group">
-            <h2 class="control-group__title">Mode</h2>
-            <p class="control-group__desc">
-              AUTO writes <code>system/auto_mode = true</code>.
-              MANUAL writes <code>system/auto_mode = false</code> so you can control the pump.
-            </p>
-            <div class="button-row">
-              <button class="btn btn--mode" id="btnAutoMode" type="button" data-mode="AUTO">
-                AUTO
-              </button>
-              <button class="btn btn--mode" id="btnManualMode" type="button" data-mode="MANUAL">
-                MANUAL
-              </button>
-            </div>
-            <p class="control-group__meta" id="modeHint">Operating mode</p>
           </div>
 
-          <div class="control-group" id="pumpControlGroup">
-            <h2 class="control-group__title">Pump Control</h2>
-            <p class="control-group__desc" id="pumpControlHint">
-              Switch to MANUAL mode to control the pump from the dashboard.
-            </p>
-            <div class="button-row">
-              <button class="btn btn--pump-on" id="btnPumpOn" type="button" disabled>
-                TURN ON
-              </button>
-              <button class="btn btn--pump-off" id="btnPumpOff" type="button" disabled>
-                TURN OFF
-              </button>
+          <div id="timerPanel" class="timer-panel" aria-live="polite">
+            <div class="title">Aktivan tajmer</div>
+            <div class="seconds">
+              <span id="timerSeconds">0</span><span>sekundi preostalo</span>
             </div>
           </div>
-        </section>
+        </div>
 
-        <section class="panel" aria-label="Automation conditions">
-          <div class="panel__header">
-            <h2 class="panel__title">Automation Conditions</h2>
-            <p class="panel__desc">
-              Dashboard preview of dryness. ESP32 uses <code>system/auto_mode</code> to decide when to run the pump.
-            </p>
+        <div class="connection">
+          <span id="connDot" class="dot offline"></span>
+          <span id="connText">Čekanje veze sa ESP32…</span>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Kontrole</h2>
+        <div class="controls">
+          <button id="toggleBtn" class="btn btn-toggle" type="button">
+            Toggle ON / OFF
+          </button>
+
+          <div class="timer-row">
+            <div class="field">
+              <label for="timerInput">Trajanje tajmera (sekunde)</label>
+              <input id="timerInput" type="number" min="1" step="1" value="10" />
+            </div>
+            <button id="startTimerBtn" class="btn btn-timer" type="button">
+              Pokreni
+            </button>
           </div>
-          <ul class="condition-list" id="conditionList">
-            <li class="condition-item" id="conditionMoisture" data-met="unknown">
-              <div class="condition-item__info">
-                <span class="condition-item__name">Soil Moisture</span>
-                <span class="condition-item__rule">&lt; 40 %</span>
-              </div>
-              <span class="condition-item__mark" aria-label="Unknown">—</span>
-            </li>
-            <li class="condition-item" id="conditionAuto" data-met="unknown">
-              <div class="condition-item__info">
-                <span class="condition-item__name">Auto Mode</span>
-                <span class="condition-item__rule">= true</span>
-              </div>
-              <span class="condition-item__mark" aria-label="Unknown">—</span>
-            </li>
-          </ul>
-        </section>
+        </div>
+      </section>
 
-        <section class="panel" aria-label="Pump activity">
-          <div class="panel__header">
-            <h2 class="panel__title">Pump Activity</h2>
-            <p class="panel__desc">
-              Current state:
-              <strong id="pumpActivityState">--</strong>
-            </p>
-          </div>
-          <ul class="activity-list" id="pumpActivityList">
-            <li class="activity-list__empty" id="pumpActivityEmpty">No pump activity recorded this session.</li>
-          </ul>
-        </section>
+      <section class="card">
+        <h2>Istorija Aktivnosti (Firebase Log)</h2>
+        <ul id="activityLog" class="log-list">
+          <li class="log-empty">Učitavanje logova…</li>
+        </ul>
+      </section>
 
-        <section class="charts" aria-label="Live charts">
-          <article class="chart-card">
-            <div class="chart-card__header">
-              <h2 class="chart-card__title">Moisture History</h2>
-              <p class="chart-card__desc">Latest 20 readings this session from <code>sensors/moisture</code></p>
-            </div>
-            <div class="chart-card__canvas-wrap chart-card__canvas-wrap--tall">
-              <canvas id="moistureChart" aria-label="Soil moisture line chart"></canvas>
-            </div>
-          </article>
-
-          <article class="chart-card">
-            <div class="chart-card__header">
-              <h2 class="chart-card__title">Pump Activity Chart</h2>
-              <p class="chart-card__desc">ON / OFF changes from <code>system/pump_status</code></p>
-            </div>
-            <div class="chart-card__canvas-wrap chart-card__canvas-wrap--tall">
-              <canvas id="pumpChart" aria-label="Pump activity chart"></canvas>
-            </div>
-          </article>
-        </section>
-      </main>
-
-      <footer class="footer">
-        <p>Lana Mustafić &mdash; IB210240</p>
-      </footer>
+      <footer>ESP32 IoT Control Panel</footer>
     </div>
 
-    <script type="module" src="script.js"></script>
+    <script>
+      const FIREBASE_DB_URL =
+        "https://sistemzalivanje-default-rtdb.europe-west1.firebasedatabase.app";
+      const FIREBASE_AUTH = "9djHDyc87KmRpkPnJ2E9ydmwZtAbNouDBrZu0aZo";
+      const FIREBASE_LOGS_URL =
+        FIREBASE_DB_URL + "/logs.json?auth=" + encodeURIComponent(FIREBASE_AUTH);
+
+      const espIpInput = document.getElementById("espIp");
+      const relayBadge = document.getElementById("relayBadge");
+      const relayStatus = document.getElementById("relayStatus");
+      const timerPanel = document.getElementById("timerPanel");
+      const timerSeconds = document.getElementById("timerSeconds");
+      const connDot = document.getElementById("connDot");
+      const connText = document.getElementById("connText");
+      const toggleBtn = document.getElementById("toggleBtn");
+      const timerInput = document.getElementById("timerInput");
+      const startTimerBtn = document.getElementById("startTimerBtn");
+      const activityLog = document.getElementById("activityLog");
+
+      let lastKnownRelay = null;
+
+      function getBaseUrl() {
+        const ip = (espIpInput.value || "").trim();
+        return "http://" + ip;
+      }
+
+      function setConnection(online, message) {
+        connDot.classList.toggle("online", online);
+        connDot.classList.toggle("offline", !online);
+        connText.textContent = message;
+      }
+
+      function formatTimestamp(value) {
+        const date = value ? new Date(value) : new Date();
+
+        if (isNaN(date.getTime())) {
+          return String(value);
+        }
+
+        return date.toLocaleString("bs-BA", {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+        });
+      }
+
+      function renderStatus(data) {
+        const isOn = Boolean(data.relay);
+
+        relayBadge.classList.toggle("on", isOn);
+        relayBadge.classList.toggle("off", !isOn);
+        relayStatus.textContent = isOn ? "UKLJUČEN" : "ISKLJUČEN";
+
+        if (data.timerActive) {
+          timerPanel.classList.add("active");
+          timerSeconds.textContent = Number(data.timerSeconds) || 0;
+        } else {
+          timerPanel.classList.remove("active");
+          timerSeconds.textContent = "0";
+        }
+      }
+
+      function renderActivityLog(logs) {
+        activityLog.innerHTML = "";
+
+        if (!logs.length) {
+          const empty = document.createElement("li");
+          empty.className = "log-empty";
+          empty.textContent = "Nema zapisa u Firebase logu.";
+          activityLog.appendChild(empty);
+          return;
+        }
+
+        logs.forEach(function (entry) {
+          const li = document.createElement("li");
+          li.className = "log-item";
+
+          const eventEl = document.createElement("div");
+          eventEl.className = "event";
+          eventEl.textContent = entry.event || "Nepoznat događaj";
+
+          if (entry.event === "Uključen") {
+            eventEl.classList.add("on");
+          } else if (entry.event === "Isključen") {
+            eventEl.classList.add("off");
+          } else if (entry.event === "Tajmer pokrenut") {
+            eventEl.classList.add("timer");
+          }
+
+          const metaEl = document.createElement("div");
+          metaEl.className = "meta";
+          metaEl.textContent = formatTimestamp(entry.timestamp);
+
+          li.appendChild(eventEl);
+          li.appendChild(metaEl);
+
+          if (entry.duration !== undefined && entry.duration !== null && entry.duration !== "") {
+            const durationEl = document.createElement("div");
+            durationEl.className = "duration";
+            durationEl.textContent = "Trajanje: " + entry.duration + " s";
+            li.appendChild(durationEl);
+          }
+
+          activityLog.appendChild(li);
+        });
+      }
+
+      async function pushFirebaseLog(eventName, duration) {
+        const payload = {
+          timestamp: new Date().toISOString(),
+          event: eventName,
+        };
+
+        if (duration !== undefined && duration !== null) {
+          payload.duration = Number(duration);
+        }
+
+        const response = await fetch(FIREBASE_LOGS_URL, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        });
+
+        if (!response.ok) {
+          throw new Error("Firebase POST HTTP " + response.status);
+        }
+
+        return response.json();
+      }
+
+      async function fetchActivityLogs() {
+        try {
+          const url =
+            FIREBASE_DB_URL +
+            '/logs.json?auth=' +
+            encodeURIComponent(FIREBASE_AUTH) +
+            '&orderBy="$key"&limitToLast=5';
+
+          const response = await fetch(url, {
+            method: "GET",
+            cache: "no-store",
+          });
+
+          if (!response.ok) {
+            throw new Error("Firebase GET HTTP " + response.status);
+          }
+
+          const data = await response.json();
+          const logs = [];
+
+          if (data && typeof data === "object") {
+            Object.keys(data).forEach(function (key) {
+              logs.push(Object.assign({ id: key }, data[key]));
+            });
+          }
+
+          // Najnoviji prvi
+          logs.reverse();
+          renderActivityLog(logs);
+        } catch (error) {
+          console.error("fetchActivityLogs error:", error);
+          activityLog.innerHTML =
+            '<li class="log-error">Neuspješno učitavanje Firebase logova.</li>';
+        }
+      }
+
+      async function logEventAndRefresh(eventName, duration) {
+        try {
+          await pushFirebaseLog(eventName, duration);
+          await fetchActivityLogs();
+        } catch (error) {
+          console.error("Firebase log error:", error);
+        }
+      }
+
+      async function fetchStatus() {
+        try {
+          const response = await fetch(getBaseUrl() + "/api/status", {
+            method: "GET",
+            cache: "no-store",
+          });
+
+          if (!response.ok) {
+            throw new Error("HTTP " + response.status);
+          }
+
+          const data = await response.json();
+          renderStatus(data);
+          setConnection(true, "Povezano sa ESP32");
+          lastKnownRelay = Boolean(data.relay);
+          return data;
+        } catch (error) {
+          setConnection(false, "Nema veze sa ESP32");
+          console.error("fetchStatus error:", error);
+          return null;
+        }
+      }
+
+      async function toggleRelay() {
+        toggleBtn.disabled = true;
+
+        try {
+          const response = await fetch(getBaseUrl() + "/api/toggle", {
+            method: "GET",
+            cache: "no-store",
+          });
+
+          if (!response.ok) {
+            throw new Error("HTTP " + response.status);
+          }
+
+          const data = await fetchStatus();
+
+          if (data) {
+            const eventName = Boolean(data.relay) ? "Uključen" : "Isključen";
+            await logEventAndRefresh(eventName);
+          }
+        } catch (error) {
+          setConnection(false, "Greška pri toggle komandi");
+          console.error("toggleRelay error:", error);
+        } finally {
+          toggleBtn.disabled = false;
+        }
+      }
+
+      async function startTimer() {
+        const seconds = Math.max(1, parseInt(timerInput.value, 10) || 10);
+        timerInput.value = seconds;
+        startTimerBtn.disabled = true;
+
+        try {
+          const response = await fetch(
+            getBaseUrl() + "/api/start-timer?sec=" + encodeURIComponent(seconds),
+            {
+              method: "GET",
+              cache: "no-store",
+            }
+          );
+
+          if (!response.ok) {
+            throw new Error("HTTP " + response.status);
+          }
+
+          await fetchStatus();
+          await logEventAndRefresh("Tajmer pokrenut", seconds);
+        } catch (error) {
+          setConnection(false, "Greška pri pokretanju tajmera");
+          console.error("startTimer error:", error);
+        } finally {
+          startTimerBtn.disabled = false;
+        }
+      }
+
+      toggleBtn.addEventListener("click", toggleRelay);
+      startTimerBtn.addEventListener("click", startTimer);
+
+      fetchStatus();
+      fetchActivityLogs();
+      setInterval(fetchStatus, 1000);
+    </script>
   </body>
 </html>
