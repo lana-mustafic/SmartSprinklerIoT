@@ -444,6 +444,40 @@
         connText.textContent = message;
       }
 
+      function delay(ms) {
+        return new Promise(function (resolve) {
+          setTimeout(resolve, ms);
+        });
+      }
+
+      /**
+       * ESP32 fetch sa Chrome Private Network Access podrškom.
+       * Ako browser prikaže dijalog za lokalnu mrežu, zahtjev se ne ruši
+       * nego se automatski ponovi jednom.
+       */
+      async function fetchEsp(url) {
+        const options = {
+          method: "GET",
+          mode: "cors",
+          targetAddressSpace: "private",
+          cache: "no-store",
+        };
+
+        try {
+          return await fetch(url, options);
+        } catch (error) {
+          console.warn("ESP32 fetch greška, ponavljam zahtjev…", error);
+          await delay(800);
+
+          try {
+            return await fetch(url, options);
+          } catch (retryError) {
+            console.error("ESP32 fetch retry greška:", retryError);
+            throw retryError;
+          }
+        }
+      }
+
       function renderStatus(data) {
         const isOn = Boolean(data.relay);
 
@@ -556,10 +590,7 @@
 
       async function fetchStatus() {
         try {
-          const response = await fetch(getBaseUrl() + "/api/status", {
-            method: "GET",
-            cache: "no-store",
-          });
+          const response = await fetchEsp(getBaseUrl() + "/api/status");
 
           if (!response.ok) {
             throw new Error("HTTP " + response.status);
@@ -580,10 +611,7 @@
         toggleBtn.disabled = true;
 
         try {
-          const response = await fetch(getBaseUrl() + "/api/toggle", {
-            method: "GET",
-            cache: "no-store",
-          });
+          const response = await fetchEsp(getBaseUrl() + "/api/toggle");
 
           if (!response.ok) {
             throw new Error("HTTP " + response.status);
@@ -609,12 +637,8 @@
         startTimerBtn.disabled = true;
 
         try {
-          const response = await fetch(
-            getBaseUrl() + "/api/start-timer?sec=" + encodeURIComponent(seconds),
-            {
-              method: "GET",
-              cache: "no-store",
-            }
+          const response = await fetchEsp(
+            getBaseUrl() + "/api/start-timer?sec=" + encodeURIComponent(seconds)
           );
 
           if (!response.ok) {

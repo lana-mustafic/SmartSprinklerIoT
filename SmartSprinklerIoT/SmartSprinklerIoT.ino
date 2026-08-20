@@ -4,7 +4,6 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 
-// Uključujemo konfiguracijski fajl sa Wi-Fi podacima
 #include "config.h"
 
 #define SCREEN_WIDTH 128
@@ -19,17 +18,15 @@ Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
 bool relayState = false;
 bool lastButtonState = HIGH;
 
-// Varijable za tajmer
 bool timerActive = false;
 unsigned long timerEndTime = 0;
 int timerSecondsRemaining = 0;
 
 void updateDisplay() {
   display.clearDisplay();
-  display.setTextWrap(false); // Onemogućava prelamanje teksta
+  display.setTextWrap(false);
   display.setTextColor(SSD1306_WHITE);
   
-  // IP adresa na vrhu
   display.setTextSize(1);
   display.setCursor(0, 0);
   if (WiFi.status() == WL_CONNECTED) {
@@ -51,7 +48,6 @@ void updateDisplay() {
     display.setCursor(20, 22);
     display.print("STATUS RELEJA:");
     
-    // Status u jednom redu
     display.setTextSize(1);
     display.setCursor(25, 42);
     if (relayState) {
@@ -63,27 +59,18 @@ void updateDisplay() {
   display.display();
 }
 
-// Omogućavanje CORS-a za GitHub Pages
-void setCORS() {
-  server.sendHeader("Access-Control-Allow-Origin", "*");
-  server.sendHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-  server.sendHeader("Access-Control-Allow-Headers", "*");
-}
-
-// REST API ENDPOINTI
+// REST API ENDPOINTI (Bez duplih setCORS poziva)
 
 void handleApiStatus() {
-  setCORS();
-  String json = "{";
-  json += "\"relay\":" + String(relayState ? "true" : "false") + ",";
-  json += "\"timerActive\":" + String(timerActive ? "true" : "false") + ",";
-  json += "\"timerSeconds\":" + String(timerSecondsRemaining);
-  json += "}";
+  server.sendHeader("Access-Control-Allow-Origin", "*");
+  String json = "{\"relay\":" + String(relayState ? "true" : "false") + 
+                ",\"timerActive\":" + String(timerActive ? "true" : "false") + 
+                ",\"timerSeconds\":" + String(timerSecondsRemaining) + "}";
   server.send(200, "application/json", json);
 }
 
 void handleApiToggle() {
-  setCORS();
+  server.sendHeader("Access-Control-Allow-Origin", "*");
   relayState = !relayState;
   timerActive = false;
   digitalWrite(RELAY_PIN, relayState ? LOW : HIGH);
@@ -92,7 +79,7 @@ void handleApiToggle() {
 }
 
 void handleApiStartTimer() {
-  setCORS();
+  server.sendHeader("Access-Control-Allow-Origin", "*");
   if (server.hasArg("sec")) {
     int sec = server.arg("sec").toInt();
     if (sec > 0) {
@@ -106,7 +93,9 @@ void handleApiStartTimer() {
 }
 
 void handleOptions() {
-  setCORS();
+  server.sendHeader("Access-Control-Allow-Origin", "*");
+  server.sendHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  server.sendHeader("Access-Control-Allow-Headers", "*");
   server.send(204);
 }
 
@@ -122,7 +111,6 @@ void setup() {
   
   updateDisplay();
 
-  // Spajanje na Wi-Fi koristeći varijable iz config.h
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
@@ -133,7 +121,6 @@ void setup() {
   Serial.print("IP Adresa: ");
   Serial.println(WiFi.localIP());
 
-  // Rutiranje API zahtjeva
   server.on("/api/status", HTTP_GET, handleApiStatus);
   server.on("/api/toggle", HTTP_GET, handleApiToggle);
   server.on("/api/start-timer", HTTP_GET, handleApiStartTimer);
@@ -153,8 +140,8 @@ void loop() {
     long remaining = (timerEndTime - millis()) / 1000;
     if (remaining <= 0) {
       timerActive = false;
-      relayState = true;
-      digitalWrite(RELAY_PIN, LOW);
+      relayState = false;
+      digitalWrite(RELAY_PIN, HIGH);
       updateDisplay();
     } else if (remaining != timerSecondsRemaining) {
       timerSecondsRemaining = remaining;
