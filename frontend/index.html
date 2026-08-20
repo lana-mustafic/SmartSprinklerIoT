@@ -531,11 +531,29 @@
       const programButtons = document.querySelectorAll(".program-btn");
 
       let activeProgramSeconds = null;
+      let localTimerInterval = null;
+      let localSecondsLeft = 0;
 
       function setConnection(online, message) {
         connDot.classList.toggle("online", online);
         connDot.classList.toggle("offline", !online);
         connText.textContent = message;
+      }
+
+      function setRelayUi(isOn) {
+        relayBadge.classList.toggle("on", isOn);
+        relayBadge.classList.toggle("off", !isOn);
+        relayStatus.textContent = isOn ? "UKLJUČEN" : "ISKLJUČEN";
+      }
+
+      function setTimerUi(secondsLeft, visible) {
+        if (visible && secondsLeft > 0) {
+          timerPanel.classList.add("active");
+          timerSeconds.textContent = secondsLeft;
+        } else {
+          timerPanel.classList.remove("active");
+          timerSeconds.textContent = "0";
+        }
       }
 
       function updateProgramHighlight(timerActive, secondsLeft) {
@@ -558,32 +576,88 @@
         }
       }
 
+      function stopLocalTimer() {
+        if (localTimerInterval !== null) {
+          clearInterval(localTimerInterval);
+          localTimerInterval = null;
+        }
+        localSecondsLeft = 0;
+      }
+
+      function finishLocalTimer() {
+        stopLocalTimer();
+        setRelayUi(false);
+        setTimerUi(0, false);
+        updateProgramHighlight(false, 0);
+      }
+
+      function startLocalTimer(seconds) {
+        stopLocalTimer();
+
+        localSecondsLeft = Math.max(1, Number(seconds) || 1);
+        setRelayUi(true);
+        setTimerUi(localSecondsLeft, true);
+        updateProgramHighlight(true, localSecondsLeft);
+
+        localTimerInterval = setInterval(function () {
+          localSecondsLeft -= 1;
+
+          if (localSecondsLeft > 0) {
+            setTimerUi(localSecondsLeft, true);
+            updateProgramHighlight(true, localSecondsLeft);
+            return;
+          }
+
+          // Tajmer stigao do 0 — UI automatski na ISKLJUČENO
+          finishLocalTimer();
+        }, 1000);
+      }
+
+      function isLocalTimerRunning() {
+        return localTimerInterval !== null && localSecondsLeft > 0;
+      }
+
+      function isFirebaseTimerActive(data) {
+        if (!data || typeof data !== "object") {
+          return false;
+        }
+
+        const secondsLeft = Number(data.timerSeconds) || 0;
+        return (
+          data.timerActive === true ||
+          data.timerActive === "true" ||
+          secondsLeft > 0
+        );
+      }
+
       function renderStatus(data) {
         if (!data || typeof data !== "object") {
           return;
         }
 
-        const isOn = Boolean(data.relay);
+        const firebaseTimerActive = isFirebaseTimerActive(data);
 
-        relayBadge.classList.toggle("on", isOn);
-        relayBadge.classList.toggle("off", !isOn);
-        relayStatus.textContent = isOn ? "UKLJUČEN" : "ISKLJUČEN";
-
-        const secondsLeft = Number(data.timerSeconds) || 0;
-        const timerActive =
-          data.timerActive === true ||
-          data.timerActive === "true" ||
-          secondsLeft > 0;
-
-        if (timerActive && secondsLeft > 0) {
-          timerPanel.classList.add("active");
-          timerSeconds.textContent = secondsLeft;
-        } else {
-          timerPanel.classList.remove("active");
-          timerSeconds.textContent = "0";
+        // Ako Firebase više ne prijavljuje aktivan tajmer, prekini lokalni timer
+        if (!firebaseTimerActive && isLocalTimerRunning()) {
+          finishLocalTimer();
+          setRelayUi(Boolean(data.relay));
+          return;
         }
 
-        updateProgramHighlight(timerActive, secondsLeft);
+        // Dok lokalni tajmer radi, ne pregazi lokalno odbrojavanje Firebase sekundama
+        if (isLocalTimerRunning()) {
+          setRelayUi(true);
+          setTimerUi(localSecondsLeft, true);
+          updateProgramHighlight(true, localSecondsLeft);
+          return;
+        }
+
+        const isOn = Boolean(data.relay);
+        const secondsLeft = Number(data.timerSeconds) || 0;
+
+        setRelayUi(isOn);
+        setTimerUi(secondsLeft, firebaseTimerActive && secondsLeft > 0);
+        updateProgramHighlight(firebaseTimerActive, secondsLeft);
       }
 
       function renderActivityLog(logs) {
@@ -720,6 +794,11 @@
         toggleBtn.disabled = true;
 
         try {
+          // Ručni toggle prekida lokalni tajmer
+          stopLocalTimer();
+          activeProgramSeconds = null;
+          updateProgramHighlight(false, 0);
+
           await sendCommand("TOGGLE");
           await fetchStatus();
 
@@ -741,9 +820,10 @@
         try {
           activeProgramSeconds = null;
           await sendCommand("TIMER_" + seconds);
-          await fetchStatus();
+          startLocalTimer(seconds);
           await sendLogToFirebase("Tajmer pokrenut", seconds);
         } catch (error) {
+          stopLocalTimer();
           setConnection(false, "Greška pri pokretanju tajmera");
           console.error("startTimer error:", error);
         } finally {
@@ -762,10 +842,12 @@
         try {
           activeProgramSeconds = seconds;
           await sendCommand("TIMER_" + seconds);
-          await fetchStatus();
+          startLocalTimer(seconds);
           await sendLogToFirebase(logText, seconds);
         } catch (error) {
+          stopLocalTimer();
           activeProgramSeconds = null;
+          updateProgramHighlight(false, 0);
           setConnection(false, "Greška pri pokretanju programa");
           console.error("startProgram error:", error);
         } finally {

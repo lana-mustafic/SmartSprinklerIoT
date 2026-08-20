@@ -26,7 +26,7 @@ unsigned long timerEndTime = 0;
 int timerSecondsRemaining = 0;
 
 unsigned long lastFirebasePoll = 0;
-const long pollInterval = 1500; // Provjerava Firebase svakih 1.5 sekundi
+const long pollInterval = 500; // Provjera komandi svakih 500 ms kada je sistem slobodan
 
 void updateDisplay() {
   display.clearDisplay();
@@ -93,24 +93,22 @@ void checkFirebaseCommands() {
     payload.trim();
 
     if (payload != "null" && payload != "\"NONE\"") {
-      // Obrada komandi
       if (payload == "\"TOGGLE\"") {
         relayState = !relayState;
         timerActive = false;
         digitalWrite(RELAY_PIN, relayState ? LOW : HIGH);
       } else if (payload.startsWith("\"TIMER_")) {
-        // Format komande: "TIMER_30"
         int sec = payload.substring(7, payload.length() - 1).toInt();
         if (sec > 0) {
           timerSecondsRemaining = sec;
-          timerEndTime = millis() + (sec * 1000);
+          timerEndTime = millis() + (sec * 1000UL);
           timerActive = true;
           relayState = true;
-          digitalWrite(RELAY_PIN, LOW);
+          digitalWrite(RELAY_PIN, LOW); // Pali relej
         }
       }
 
-      // Ocisti komandu na Firebase-u nakon sto je izvrsena
+      // Ocisti komandu sa Firebase-a
       HTTPClient clearHttp;
       clearHttp.begin(FIREBASE_HOST + "/command.json?auth=" + FIREBASE_AUTH);
       clearHttp.addHeader("Content-Type", "application/json");
@@ -148,29 +146,31 @@ void setup() {
 }
 
 void loop() {
-  // Povremena provjera komandi sa Firebase-a
-  if (millis() - lastFirebasePoll >= pollInterval) {
-    lastFirebasePoll = millis();
-    checkFirebaseCommands();
-    syncStateToFirebase();
-  }
-
-  // Logika tajmera
-  if (timerActive) {
-    long remaining = (timerEndTime - millis()) / 1000;
-    if (remaining <= 0) {
-      timerActive = false;
-      relayState = false;
-      digitalWrite(RELAY_PIN, HIGH);
-      updateDisplay();
-      syncStateToFirebase();
-    } else if (remaining != timerSecondsRemaining) {
-      timerSecondsRemaining = remaining;
-      updateDisplay();
+  // Provjeravaj komande SAMO ako tajmer NIJE aktivan (sprecava kocenje odbrojavanja)
+  if (!timerActive) {
+    if (millis() - lastFirebasePoll >= pollInterval) {
+      lastFirebasePoll = millis();
+      checkFirebaseCommands();
     }
   }
 
-  // Fizicko dugme na ESP32
+  // Lokalna logika tajmera - radi bez ikakvog mreznog kasnjenja
+  if (timerActive) {
+    long remaining = (long)(timerEndTime - millis()) / 1000;
+    if (remaining <= 0) {
+      timerActive = false;
+      relayState = false;
+      timerSecondsRemaining = 0;
+      digitalWrite(RELAY_PIN, HIGH); // Gasi relej
+      updateDisplay();
+      syncStateToFirebase(); // Obavijesti Firebase da je gotovo
+    } else if (remaining != timerSecondsRemaining) {
+      timerSecondsRemaining = remaining;
+      updateDisplay(); // Trenutno i glatko osvjezavanje SSD1306
+    }
+  }
+
+  // Fizicko dugme na ESP32 (Pin 0)
   bool currentButtonState = digitalRead(BUTTON_PIN);
   if (lastButtonState == HIGH && currentButtonState == LOW) {
     delay(50);
