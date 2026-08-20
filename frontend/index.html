@@ -258,6 +258,72 @@
         color: var(--accent);
       }
 
+      .programs-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 0.85rem;
+      }
+
+      @media (min-width: 640px) {
+        .programs-grid {
+          grid-template-columns: repeat(3, 1fr);
+        }
+      }
+
+      .program-btn {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.35rem;
+        width: 100%;
+        text-align: left;
+        padding: 1.1rem 1.15rem;
+        border-radius: 14px;
+        border: 2px solid var(--card-border);
+        background: var(--bg-elevated);
+        color: var(--text);
+        font: inherit;
+        cursor: pointer;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease,
+          transform 0.12s ease, background 0.2s ease;
+      }
+
+      .program-btn:hover:not(:disabled) {
+        border-color: var(--accent);
+        transform: translateY(-1px);
+      }
+
+      .program-btn:active:not(:disabled) {
+        transform: scale(0.98);
+      }
+
+      .program-btn:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+      }
+
+      .program-btn.active {
+        border-color: var(--on);
+        background: var(--on-bg);
+        box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.2),
+          0 0 24px rgba(34, 197, 94, 0.18);
+      }
+
+      .program-btn .program-title {
+        font-size: 1.05rem;
+        font-weight: 800;
+      }
+
+      .program-btn .program-desc {
+        font-size: 0.82rem;
+        color: var(--muted);
+        font-weight: 500;
+      }
+
+      .program-btn.active .program-desc {
+        color: rgba(232, 238, 248, 0.85);
+      }
+
       .log-list {
         list-style: none;
         display: flex;
@@ -394,6 +460,44 @@
       </section>
 
       <section class="card">
+        <h2>Programi Navodnjavanja</h2>
+        <div class="programs-grid">
+          <button
+            class="program-btn"
+            type="button"
+            data-seconds="10"
+            data-name="Orošavanje"
+            data-log="Aktiviran program: Orošavanje (10s)"
+          >
+            <span class="program-title">🌱 Orošavanje (10s)</span>
+            <span class="program-desc">Za mlade biljke</span>
+          </button>
+
+          <button
+            class="program-btn"
+            type="button"
+            data-seconds="30"
+            data-name="Standardno"
+            data-log="Aktiviran program: Standardno navodnjavanje (30s)"
+          >
+            <span class="program-title">🪴 Standardno (30s)</span>
+            <span class="program-desc">Za travnjak i baštu</span>
+          </button>
+
+          <button
+            class="program-btn"
+            type="button"
+            data-seconds="60"
+            data-name="Dubinsko"
+            data-log="Aktiviran program: Dubinsko navodnjavanje (60s)"
+          >
+            <span class="program-title">🌳 Dubinsko (60s)</span>
+            <span class="program-desc">Za grmlje i drveće</span>
+          </button>
+        </div>
+      </section>
+
+      <section class="card">
         <h2>Istorija Aktivnosti (Firebase Log)</h2>
         <ul id="activityLog" class="log-list">
           <li class="log-empty">Učitavanje logova…</li>
@@ -424,11 +528,34 @@
       const timerInput = document.getElementById("timerInput");
       const startTimerBtn = document.getElementById("startTimerBtn");
       const activityLog = document.getElementById("activityLog");
+      const programButtons = document.querySelectorAll(".program-btn");
+
+      let activeProgramSeconds = null;
 
       function setConnection(online, message) {
         connDot.classList.toggle("online", online);
         connDot.classList.toggle("offline", !online);
         connText.textContent = message;
+      }
+
+      function updateProgramHighlight(timerActive, secondsLeft) {
+        programButtons.forEach(function (btn) {
+          const programSeconds = Number(btn.dataset.seconds);
+          const isActive =
+            timerActive &&
+            activeProgramSeconds !== null &&
+            programSeconds === activeProgramSeconds &&
+            secondsLeft > 0;
+
+          btn.classList.toggle("active", isActive);
+        });
+
+        if (!timerActive || secondsLeft <= 0) {
+          activeProgramSeconds = null;
+          programButtons.forEach(function (btn) {
+            btn.classList.remove("active");
+          });
+        }
       }
 
       function renderStatus(data) {
@@ -455,6 +582,8 @@
           timerPanel.classList.remove("active");
           timerSeconds.textContent = "0";
         }
+
+        updateProgramHighlight(timerActive, secondsLeft);
       }
 
       function renderActivityLog(logs) {
@@ -480,7 +609,10 @@
             eventEl.classList.add("on");
           } else if (entry.event === "Isključeno") {
             eventEl.classList.add("off");
-          } else if (entry.event === "Tajmer pokrenut") {
+          } else if (
+            entry.event === "Tajmer pokrenut" ||
+            (entry.event && entry.event.indexOf("Aktiviran program") === 0)
+          ) {
             eventEl.classList.add("timer");
           }
 
@@ -607,6 +739,7 @@
         startTimerBtn.disabled = true;
 
         try {
+          activeProgramSeconds = null;
           await sendCommand("TIMER_" + seconds);
           await fetchStatus();
           await sendLogToFirebase("Tajmer pokrenut", seconds);
@@ -618,8 +751,38 @@
         }
       }
 
+      async function startProgram(button) {
+        const seconds = Number(button.dataset.seconds);
+        const logText = button.dataset.log;
+
+        programButtons.forEach(function (btn) {
+          btn.disabled = true;
+        });
+
+        try {
+          activeProgramSeconds = seconds;
+          await sendCommand("TIMER_" + seconds);
+          await fetchStatus();
+          await sendLogToFirebase(logText, seconds);
+        } catch (error) {
+          activeProgramSeconds = null;
+          setConnection(false, "Greška pri pokretanju programa");
+          console.error("startProgram error:", error);
+        } finally {
+          programButtons.forEach(function (btn) {
+            btn.disabled = false;
+          });
+        }
+      }
+
       toggleBtn.addEventListener("click", toggleRelay);
       startTimerBtn.addEventListener("click", startTimer);
+
+      programButtons.forEach(function (button) {
+        button.addEventListener("click", function () {
+          startProgram(button);
+        });
+      });
 
       fetchStatus();
       fetchFirebaseLogs();
