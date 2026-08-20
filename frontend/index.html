@@ -19,7 +19,6 @@
         --off: #ef4444;
         --off-bg: rgba(239, 68, 68, 0.14);
         --warning: #f59e0b;
-        --warning-bg: rgba(245, 158, 11, 0.14);
         --radius: 16px;
         --shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
         --font: "Segoe UI", system-ui, -apple-system, sans-serif;
@@ -109,11 +108,6 @@
         box-shadow: 0 0 0 3px rgba(59, 158, 255, 0.18);
       }
 
-      .status-grid {
-        display: grid;
-        gap: 1rem;
-      }
-
       .relay-badge {
         display: flex;
         align-items: center;
@@ -122,7 +116,7 @@
         padding: 1.1rem 1.2rem;
         border-radius: 14px;
         border: 1px solid transparent;
-        transition: background 0.25s ease, border-color 0.25s ease, color 0.25s ease;
+        transition: background 0.25s ease, border-color 0.25s ease;
       }
 
       .relay-badge.on {
@@ -145,39 +139,61 @@
       .relay-badge .value {
         font-size: clamp(1.4rem, 4vw, 1.8rem);
         font-weight: 800;
-        letter-spacing: 0.02em;
       }
 
-      .timer-panel {
-        display: none;
+      .system-state {
+        margin-top: 1rem;
         padding: 1rem 1.15rem;
         border-radius: 14px;
-        background: var(--warning-bg);
-        border: 1px solid rgba(245, 158, 11, 0.4);
+        background: var(--bg-elevated);
+        border: 1px solid var(--card-border);
       }
 
-      .timer-panel.active {
+      .system-state__text {
+        font-size: 1rem;
+        font-weight: 700;
+        margin-bottom: 0.75rem;
+      }
+
+      .system-state.idle .system-state__text {
+        color: var(--muted);
+      }
+
+      .system-state.running .system-state__text {
+        color: var(--accent);
+      }
+
+      .progress-wrap {
+        display: none;
+        height: 12px;
+        border-radius: 999px;
+        background: #2a364b;
+        overflow: hidden;
+      }
+
+      .system-state.running .progress-wrap {
         display: block;
       }
 
-      .timer-panel .title {
-        color: var(--warning);
-        font-size: 0.85rem;
-        font-weight: 600;
-        margin-bottom: 0.35rem;
+      .progress-bar {
+        height: 100%;
+        width: 100%;
+        border-radius: 999px;
+        background: linear-gradient(90deg, #1d4ed8, #3b9eff);
+        transform-origin: left center;
+        animation: progressPulse 1.6s ease-in-out infinite;
       }
 
-      .timer-panel .seconds {
-        font-size: 2rem;
-        font-weight: 800;
-        color: var(--text);
-      }
-
-      .timer-panel .seconds span {
-        font-size: 1rem;
-        font-weight: 600;
-        color: var(--muted);
-        margin-left: 0.25rem;
+      @keyframes progressPulse {
+        0%,
+        100% {
+          opacity: 0.7;
+          transform: scaleX(1);
+        }
+        50% {
+          opacity: 1;
+          transform: scaleX(0.92);
+        }
       }
 
       .connection {
@@ -305,8 +321,7 @@
       .program-btn.active {
         border-color: var(--on);
         background: var(--on-bg);
-        box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.2),
-          0 0 24px rgba(34, 197, 94, 0.18);
+        box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.2);
       }
 
       .program-btn .program-title {
@@ -318,10 +333,6 @@
         font-size: 0.82rem;
         color: var(--muted);
         font-weight: 500;
-      }
-
-      .program-btn.active .program-desc {
-        color: rgba(232, 238, 248, 0.85);
       }
 
       .log-list {
@@ -418,19 +429,17 @@
 
       <section class="card">
         <h2>Status</h2>
-        <div class="status-grid">
-          <div id="relayBadge" class="relay-badge off" aria-live="polite">
-            <div>
-              <div class="label">Stanje releja</div>
-              <div id="relayStatus" class="value">ISKLJUČEN</div>
-            </div>
+        <div id="relayBadge" class="relay-badge off" aria-live="polite">
+          <div>
+            <div class="label">Stanje releja</div>
+            <div id="relayStatus" class="value">ISKLJUČEN</div>
           </div>
+        </div>
 
-          <div id="timerPanel" class="timer-panel" aria-live="polite">
-            <div class="title">Aktivan tajmer</div>
-            <div class="seconds">
-              <span id="timerSeconds">0</span><span>sekundi preostalo</span>
-            </div>
+        <div id="systemState" class="system-state idle" aria-live="polite">
+          <div id="systemStateText" class="system-state__text">Sistem miruje</div>
+          <div class="progress-wrap" id="progressWrap">
+            <div class="progress-bar" id="progressBar"></div>
           </div>
         </div>
 
@@ -466,7 +475,6 @@
             class="program-btn"
             type="button"
             data-seconds="10"
-            data-name="Orošavanje"
             data-log="Aktiviran program: Orošavanje (10s)"
           >
             <span class="program-title">🌱 Orošavanje (10s)</span>
@@ -477,7 +485,6 @@
             class="program-btn"
             type="button"
             data-seconds="30"
-            data-name="Standardno"
             data-log="Aktiviran program: Standardno navodnjavanje (30s)"
           >
             <span class="program-title">🪴 Standardno (30s)</span>
@@ -488,7 +495,6 @@
             class="program-btn"
             type="button"
             data-seconds="60"
-            data-name="Dubinsko"
             data-log="Aktiviran program: Dubinsko navodnjavanje (60s)"
           >
             <span class="program-title">🌳 Dubinsko (60s)</span>
@@ -520,8 +526,8 @@
 
       const relayBadge = document.getElementById("relayBadge");
       const relayStatus = document.getElementById("relayStatus");
-      const timerPanel = document.getElementById("timerPanel");
-      const timerSeconds = document.getElementById("timerSeconds");
+      const systemState = document.getElementById("systemState");
+      const systemStateText = document.getElementById("systemStateText");
       const connDot = document.getElementById("connDot");
       const connText = document.getElementById("connText");
       const toggleBtn = document.getElementById("toggleBtn");
@@ -530,10 +536,7 @@
       const activityLog = document.getElementById("activityLog");
       const programButtons = document.querySelectorAll(".program-btn");
 
-      let activeProgramSeconds = null;
-      let localTimerInterval = null;
-      let localSecondsLeft = 0;
-      let wasFirebaseTimerActive = false;
+      let lastSelectedProgramSeconds = null;
 
       function setConnection(online, message) {
         connDot.classList.toggle("online", online);
@@ -541,106 +544,20 @@
         connText.textContent = message;
       }
 
-      function setRelayUi(isOn) {
-        relayBadge.classList.toggle("on", isOn);
-        relayBadge.classList.toggle("off", !isOn);
-        relayStatus.textContent = isOn ? "UKLJUČEN" : "ISKLJUČEN";
-      }
-
-      function setTimerUi(secondsLeft, visible) {
-        if (visible && secondsLeft > 0) {
-          timerPanel.classList.add("active");
-          timerSeconds.textContent = secondsLeft;
-        } else {
-          timerPanel.classList.remove("active");
-          timerSeconds.textContent = "0";
-        }
-      }
-
-      function updateProgramHighlight(timerActive, secondsLeft) {
+      function updateProgramHighlight(timerActive) {
         programButtons.forEach(function (btn) {
-          const programSeconds = Number(btn.dataset.seconds);
           const isActive =
             timerActive &&
-            activeProgramSeconds !== null &&
-            programSeconds === activeProgramSeconds &&
-            secondsLeft > 0;
-
+            lastSelectedProgramSeconds !== null &&
+            Number(btn.dataset.seconds) === lastSelectedProgramSeconds;
           btn.classList.toggle("active", isActive);
         });
 
-        if (!timerActive || secondsLeft <= 0) {
-          activeProgramSeconds = null;
+        if (!timerActive) {
+          lastSelectedProgramSeconds = null;
           programButtons.forEach(function (btn) {
             btn.classList.remove("active");
           });
-        }
-      }
-
-      function stopLocalTimer() {
-        if (localTimerInterval !== null) {
-          clearInterval(localTimerInterval);
-          localTimerInterval = null;
-        }
-      }
-
-      function finishLocalTimer() {
-        stopLocalTimer();
-        localSecondsLeft = 0;
-        wasFirebaseTimerActive = false;
-        setRelayUi(false);
-        setTimerUi(0, false);
-        updateProgramHighlight(false, 0);
-      }
-
-      function isLocalTimerRunning() {
-        return localTimerInterval !== null && localSecondsLeft > 0;
-      }
-
-      /**
-       * Pokreće lokalno odbrojavanje na osnovu prve pročitane
-       * timerSeconds vrijednosti iz Firebase-a.
-       * UI se ažurira glatko svake sekunde bez novog fetch-a.
-       */
-      function startLocalCountdown(seconds) {
-        stopLocalTimer();
-
-        localSecondsLeft = Math.max(0, Math.round(Number(seconds) || 0));
-
-        if (localSecondsLeft <= 0) {
-          finishLocalTimer();
-          return;
-        }
-
-        setRelayUi(true);
-        setTimerUi(localSecondsLeft, true);
-        updateProgramHighlight(true, localSecondsLeft);
-
-        localTimerInterval = setInterval(function () {
-          localSecondsLeft -= 1;
-
-          if (localSecondsLeft > 0) {
-            setTimerUi(localSecondsLeft, true);
-            updateProgramHighlight(true, localSecondsLeft);
-            return;
-          }
-
-          finishLocalTimer();
-        }, 1000);
-      }
-
-      function isFirebaseTimerActive(data) {
-        if (!data || typeof data !== "object") {
-          return false;
-        }
-
-        return data.timerActive === true || data.timerActive === "true";
-      }
-
-      function syncProgramFromSeconds(seconds) {
-        const match = [10, 30, 60].indexOf(Number(seconds)) !== -1;
-        if (match) {
-          activeProgramSeconds = Number(seconds);
         }
       }
 
@@ -649,50 +566,25 @@
           return;
         }
 
-        const firebaseTimerActive = isFirebaseTimerActive(data);
-        const firebaseSeconds = Math.max(0, Math.round(Number(data.timerSeconds) || 0));
         const isOn = Boolean(data.relay);
+        const timerActive =
+          data.timerActive === true || data.timerActive === "true";
 
-        // Firebase kaže da tajmer više nije aktivan → odmah zaustavi lokalni
-        if (!firebaseTimerActive) {
-          if (isLocalTimerRunning() || wasFirebaseTimerActive) {
-            stopLocalTimer();
-            localSecondsLeft = 0;
-            wasFirebaseTimerActive = false;
-            setTimerUi(0, false);
-            updateProgramHighlight(false, 0);
-          }
-          setRelayUi(isOn);
-          return;
+        relayBadge.classList.toggle("on", isOn);
+        relayBadge.classList.toggle("off", !isOn);
+        relayStatus.textContent = isOn ? "UKLJUČEN" : "ISKLJUČEN";
+
+        if (timerActive) {
+          systemState.classList.remove("idle");
+          systemState.classList.add("running");
+          systemStateText.textContent = "Navodnjavanje u toku...";
+        } else {
+          systemState.classList.remove("running");
+          systemState.classList.add("idle");
+          systemStateText.textContent = "Sistem miruje";
         }
 
-        // Prešli smo na timerActive: true → pokreni lokalno odbrojavanje
-        // od prve pročitane timerSeconds vrijednosti (10, 9, 8...)
-        if (firebaseTimerActive && !wasFirebaseTimerActive) {
-          wasFirebaseTimerActive = true;
-          syncProgramFromSeconds(firebaseSeconds);
-          startLocalCountdown(firebaseSeconds);
-          return;
-        }
-
-        // Tajmer već lokalno odbrojava → ne pregazi UI Firebase fetch-om
-        if (isLocalTimerRunning()) {
-          setRelayUi(true);
-          setTimerUi(localSecondsLeft, true);
-          updateProgramHighlight(true, localSecondsLeft);
-          return;
-        }
-
-        // Aktivan u Firebase-u, ali lokalni još nije krenuo (edge case)
-        if (firebaseTimerActive && firebaseSeconds > 0) {
-          wasFirebaseTimerActive = true;
-          syncProgramFromSeconds(firebaseSeconds);
-          startLocalCountdown(firebaseSeconds);
-          return;
-        }
-
-        setRelayUi(isOn);
-        setTimerUi(0, false);
+        updateProgramHighlight(timerActive);
       }
 
       function renderActivityLog(logs) {
@@ -794,8 +686,7 @@
             });
           }
 
-          const latest = logs.slice(-5).reverse();
-          renderActivityLog(latest);
+          renderActivityLog(logs.slice(-5).reverse());
         } catch (error) {
           console.error("fetchFirebaseLogs error:", error);
           activityLog.innerHTML =
@@ -829,12 +720,7 @@
         toggleBtn.disabled = true;
 
         try {
-          stopLocalTimer();
-          localSecondsLeft = 0;
-          wasFirebaseTimerActive = false;
-          activeProgramSeconds = null;
-          updateProgramHighlight(false, 0);
-
+          lastSelectedProgramSeconds = null;
           await sendCommand("TOGGLE");
           await fetchStatus();
 
@@ -854,11 +740,10 @@
         startTimerBtn.disabled = true;
 
         try {
-          activeProgramSeconds = null;
+          lastSelectedProgramSeconds = null;
           await sendCommand("TIMER_" + seconds);
-          // Brzi fetch → renderStatus pokreće lokalni countdown iz timerSeconds
-          await fetchStatus();
           await sendLogToFirebase("Tajmer pokrenut", seconds);
+          await fetchStatus();
         } catch (error) {
           setConnection(false, "Greška pri pokretanju tajmera");
           console.error("startTimer error:", error);
@@ -876,13 +761,12 @@
         });
 
         try {
-          activeProgramSeconds = seconds;
+          lastSelectedProgramSeconds = seconds;
           await sendCommand("TIMER_" + seconds);
-          await fetchStatus();
           await sendLogToFirebase(logText, seconds);
+          await fetchStatus();
         } catch (error) {
-          activeProgramSeconds = null;
-          updateProgramHighlight(false, 0);
+          lastSelectedProgramSeconds = null;
           setConnection(false, "Greška pri pokretanju programa");
           console.error("startProgram error:", error);
         } finally {
