@@ -185,8 +185,7 @@
       }
 
       @keyframes progressPulse {
-        0%,
-        100% {
+        0%, 100% {
           opacity: 0.7;
           transform: scaleX(1);
         }
@@ -300,8 +299,7 @@
         color: var(--text);
         font: inherit;
         cursor: pointer;
-        transition: border-color 0.2s ease, box-shadow 0.2s ease,
-          transform 0.12s ease, background 0.2s ease;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.12s ease, background 0.2s ease;
       }
 
       .program-btn:hover:not(:disabled) {
@@ -379,8 +377,7 @@
         color: var(--muted);
       }
 
-      .log-empty,
-      .log-error {
+      .log-empty, .log-error {
         color: var(--muted);
         font-size: 0.9rem;
         padding: 0.5rem 0;
@@ -395,28 +392,6 @@
         text-align: center;
         color: var(--muted);
         font-size: 0.8rem;
-      }
-
-      @media (max-width: 560px) {
-        body {
-          padding: 1rem;
-        }
-
-        .card {
-          padding: 1rem;
-        }
-
-        .timer-row {
-          grid-template-columns: 1fr;
-        }
-
-        .btn-timer {
-          width: 100%;
-        }
-
-        .log-item {
-          grid-template-columns: 1fr;
-        }
       }
     </style>
   </head>
@@ -471,32 +446,17 @@
       <section class="card">
         <h2>Programi Navodnjavanja</h2>
         <div class="programs-grid">
-          <button
-            class="program-btn"
-            type="button"
-            data-seconds="10"
-            data-log="Aktiviran program: Orošavanje (10s)"
-          >
+          <button class="program-btn" type="button" data-seconds="10" data-log="Aktiviran program: Orošavanje (10s)">
             <span class="program-title">🌱 Orošavanje (10s)</span>
             <span class="program-desc">Za mlade biljke</span>
           </button>
 
-          <button
-            class="program-btn"
-            type="button"
-            data-seconds="30"
-            data-log="Aktiviran program: Standardno navodnjavanje (30s)"
-          >
+          <button class="program-btn" type="button" data-seconds="30" data-log="Aktiviran program: Standardno navodnjavanje (30s)">
             <span class="program-title">🪴 Standardno (30s)</span>
             <span class="program-desc">Za travnjak i baštu</span>
           </button>
 
-          <button
-            class="program-btn"
-            type="button"
-            data-seconds="60"
-            data-log="Aktiviran program: Dubinsko navodnjavanje (60s)"
-          >
+          <button class="program-btn" type="button" data-seconds="60" data-log="Aktiviran program: Dubinsko navodnjavanje (60s)">
             <span class="program-title">🌳 Dubinsko (60s)</span>
             <span class="program-desc">Za grmlje i drveće</span>
           </button>
@@ -515,14 +475,10 @@
 
     <script>
       const FIREBASE_AUTH = "9djHDyc87KmRpkPnJ2E9ydmwZtAbNouDBrZu0aZo";
-      const FIREBASE_BASE =
-        "https://sistemzalivanje-default-rtdb.europe-west1.firebasedatabase.app";
-      const FIREBASE_COMMAND_URL =
-        FIREBASE_BASE + "/command.json?auth=" + encodeURIComponent(FIREBASE_AUTH);
-      const FIREBASE_STATUS_URL =
-        FIREBASE_BASE + "/status.json?auth=" + encodeURIComponent(FIREBASE_AUTH);
-      const FIREBASE_LOGS_URL =
-        FIREBASE_BASE + "/logs.json?auth=" + encodeURIComponent(FIREBASE_AUTH);
+      const FIREBASE_BASE = "https://sistemzalivanje-default-rtdb.europe-west1.firebasedatabase.app";
+      const FIREBASE_COMMAND_URL = FIREBASE_BASE + "/command.json?auth=" + encodeURIComponent(FIREBASE_AUTH);
+      const FIREBASE_STATUS_URL = FIREBASE_BASE + "/status.json?auth=" + encodeURIComponent(FIREBASE_AUTH);
+      const FIREBASE_LOGS_URL = FIREBASE_BASE + "/logs.json?auth=" + encodeURIComponent(FIREBASE_AUTH);
 
       const relayBadge = document.getElementById("relayBadge");
       const relayStatus = document.getElementById("relayStatus");
@@ -546,10 +502,7 @@
 
       function updateProgramHighlight(timerActive) {
         programButtons.forEach(function (btn) {
-          const isActive =
-            timerActive &&
-            lastSelectedProgramSeconds !== null &&
-            Number(btn.dataset.seconds) === lastSelectedProgramSeconds;
+          const isActive = timerActive && lastSelectedProgramSeconds !== null && Number(btn.dataset.seconds) === lastSelectedProgramSeconds;
           btn.classList.toggle("active", isActive);
         });
 
@@ -562,13 +515,10 @@
       }
 
       function renderStatus(data) {
-        if (!data || typeof data !== "object") {
-          return;
-        }
+        if (!data || typeof data !== "object") return;
 
         const isOn = Boolean(data.relay);
-        const timerActive =
-          data.timerActive === true || data.timerActive === "true";
+        const timerActive = data.timerActive === true || data.timerActive === "true";
 
         relayBadge.classList.toggle("on", isOn);
         relayBadge.classList.toggle("off", !isOn);
@@ -610,10 +560,7 @@
             eventEl.classList.add("on");
           } else if (entry.event === "Isključeno") {
             eventEl.classList.add("off");
-          } else if (
-            entry.event === "Tajmer pokrenut" ||
-            (entry.event && entry.event.indexOf("Aktiviran program") === 0)
-          ) {
+          } else if (entry.event === "Tajmer pokrenut" || (entry.event && entry.event.indexOf("Aktiviran program") === 0)) {
             eventEl.classList.add("timer");
           }
 
@@ -673,9 +620,7 @@
             cache: "no-store",
           });
 
-          if (!response.ok) {
-            throw new Error("Firebase GET HTTP " + response.status);
-          }
+          if (!response.ok) throw new Error("Firebase GET HTTP " + response.status);
 
           const data = await response.json();
           const logs = [];
@@ -689,8 +634,7 @@
           renderActivityLog(logs.slice(-5).reverse());
         } catch (error) {
           console.error("fetchFirebaseLogs error:", error);
-          activityLog.innerHTML =
-            '<li class="log-error">Neuspješno učitavanje Firebase logova.</li>';
+          activityLog.innerHTML = '<li class="log-error">Neuspješno učitavanje Firebase logova.</li>';
         }
       }
 
@@ -701,9 +645,7 @@
             cache: "no-store",
           });
 
-          if (!response.ok) {
-            throw new Error("HTTP " + response.status);
-          }
+          if (!response.ok) throw new Error("HTTP " + response.status);
 
           const data = await response.json();
           renderStatus(data);
@@ -718,12 +660,10 @@
 
       async function toggleRelay() {
         toggleBtn.disabled = true;
-
         try {
           lastSelectedProgramSeconds = null;
           await sendCommand("TOGGLE");
           await fetchStatus();
-
           const isOn = relayBadge.classList.contains("on");
           await sendLogToFirebase(isOn ? "Uključeno" : "Isključeno");
         } catch (error) {
@@ -756,9 +696,7 @@
         const seconds = Number(button.dataset.seconds);
         const logText = button.dataset.log;
 
-        programButtons.forEach(function (btn) {
-          btn.disabled = true;
-        });
+        programButtons.forEach(function (btn) { btn.disabled = true; });
 
         try {
           lastSelectedProgramSeconds = seconds;
@@ -770,9 +708,7 @@
           setConnection(false, "Greška pri pokretanju programa");
           console.error("startProgram error:", error);
         } finally {
-          programButtons.forEach(function (btn) {
-            btn.disabled = false;
-          });
+          programButtons.forEach(function (btn) { btn.disabled = false; });
         }
       }
 

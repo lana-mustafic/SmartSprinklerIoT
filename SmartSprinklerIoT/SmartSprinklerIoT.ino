@@ -1,184 +1,121 @@
 #include <WiFi.h>
 #include <HTTPClient.h>
-#include <Wire.h>
-#include <Adafruit_GFX.h>
-#include <Adafruit_SSD1306.h>
+#include <ArduinoJson.h> // Instalirati preko Library Managera (v6.x)
 
-#include "config.h"
+// Wi-Fi podaci
+const char* ssid = "YOUR_SSID";
+const char* password = "YOUR_PASSWORD";
 
-#define SCREEN_WIDTH 128
-#define SCREEN_HEIGHT 64
+// Firebase podaci
+const String firebaseHost = "https://sistemzalivanje-default-rtdb.europe-west1.firebasedatabase.app";
+const String firebaseAuth = "9djHDyc87KmRpkPnJ2E9ydmwZtAbNouDBrZu0aZo";
 
-#define RELAY_PIN 19
-#define BUTTON_PIN 0
+// Pin releja (prilagoditi po potrebi, npr. GPIO 23)
+const int RELAY_PIN = 23;
 
-// Firebase REST API URL-ovi
-const String FIREBASE_HOST = "https://sistemzalivanje-default-rtdb.europe-west1.firebasedatabase.app";
-const String FIREBASE_AUTH = "9djHDyc87KmRpkPnJ2E9ydmwZtAbNouDBrZu0aZo";
-
-Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
-
-bool relayState = false;
-bool lastButtonState = HIGH;
-
+// Tajmer varijable
+unsigned long timerInterval = 0; // u milisekundama
+unsigned long timerStartMillis = 0;
 bool timerActive = false;
-unsigned long timerEndTime = 0;
-int timerSecondsRemaining = 0;
 
-unsigned long lastFirebasePoll = 0;
-const long pollInterval = 500; // Provjera komandi svakih 500 ms kada je sistem slobodan
+void setup() {
+  Serial.begin(115200);
+  pinMode(RELAY_PIN, OUTPUT);
+  digitalWrite(RELAY_PIN, LOW); // Početno isključeno
 
-void updateDisplay() {
-  display.clearDisplay();
-  display.setTextWrap(false);
-  display.setTextColor(SSD1306_WHITE);
-  
-  display.setTextSize(1);
-  display.setCursor(0, 0);
-  if (WiFi.status() == WL_CONNECTED) {
-    display.print("CLOUD: Povezano");
-  } else {
-    display.print("Spajanje na Wi-Fi...");
+  // Povezivanje na Wi-Fi
+  WiFi.begin(ssid, password);
+  Serial.print("Povezivanje na Wi-Fi");
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
   }
-  display.drawFastHLine(0, 10, 128, SSD1306_WHITE);
-
-  if (timerActive) {
-    display.setCursor(18, 22);
-    display.print("TAJMER AKTIVAN:");
-    display.setTextSize(2);
-    display.setCursor(45, 40);
-    display.print(timerSecondsRemaining);
-    display.println("s");
-  } else {
-    display.setCursor(20, 22);
-    display.print("STATUS RELEJA:");
-    
-    display.setTextSize(1);
-    display.setCursor(25, 42);
-    if (relayState) {
-      display.println("[ UKLJUCENO ]");
-    } else {
-      display.println("[ ISKLJUCENO ]");
-    }
-  }
-  display.display();
+  Serial.println("\nPovezano na Wi-Fi!");
 }
 
-void syncStateToFirebase() {
+void loop() {
   if (WiFi.status() == WL_CONNECTED) {
-    HTTPClient http;
-    String url = FIREBASE_HOST + "/status.json?auth=" + FIREBASE_AUTH;
-    http.begin(url);
-    http.addHeader("Content-Type", "application/json");
-    
-    String json = "{\"relay\":" + String(relayState ? "true" : "false") + 
-                  ",\"timerActive\":" + String(timerActive ? "true" : "false") + 
-                  ",\"timerSeconds\":" + String(timerSecondsRemaining) + "}";
-                  
-    http.PUT(json);
-    http.end();
+    checkCommands();
+    updateTimer();
   }
+  delay(2000); // Provjera svake 2 sekunde
 }
 
-void checkFirebaseCommands() {
-  if (WiFi.status() != WL_CONNECTED) return;
-
+void checkCommands() {
   HTTPClient http;
-  String url = FIREBASE_HOST + "/command.json?auth=" + FIREBASE_AUTH;
-  http.begin(url);
+  String url = firebaseHost + "/command.json?auth=" + firebaseAuth;
   
-  int httpCode = http.GET();
-  if (httpCode == HTTP_CODE_OK) {
+  http.begin(url);
+  int httpResponseCode = http.GET();
+
+  if (httpResponseCode > 0) {
     String payload = http.getString();
+    // Uklanjanje navodnika koje Firebase vraća za string objekte
+    payload.replace("\"", "");
     payload.trim();
 
-    if (payload != "null" && payload != "\"NONE\"") {
-      if (payload == "\"TOGGLE\"") {
-        relayState = !relayState;
-        timerActive = false;
-        digitalWrite(RELAY_PIN, relayState ? LOW : HIGH);
-      } else if (payload.startsWith("\"TIMER_")) {
-        int sec = payload.substring(7, payload.length() - 1).toInt();
-        if (sec > 0) {
-          timerSecondsRemaining = sec;
-          timerEndTime = millis() + (sec * 1000UL);
+    if (payload != "null" && payload != "") {
+      Serial.println("Primljena komanda: " + payload);
+      
+      if (payload == "TOGGLE") {
+        int currentState = digitalRead(RELAY_PIN);
+        digitalWrite(RELAY_PIN, !currentState);
+        timerActive = false; // Prekida se tajmer ako se ručno mijenja
+        updateFirebaseStatus();
+      } 
+      else if (payload.startsWith("TIMER_")) {
+        int seconds = payload.substring(6).toInt();
+        if (seconds > 0) {
+          digitalWrite(RELAY_PIN, HIGH);
+          timerInterval = seconds * 1000UL;
+          timerStartMillis = millis();
           timerActive = true;
-          relayState = true;
-          digitalWrite(RELAY_PIN, LOW); // Pali relej
+          updateFirebaseStatus();
         }
       }
 
-      // Ocisti komandu sa Firebase-a
-      HTTPClient clearHttp;
-      clearHttp.begin(FIREBASE_HOST + "/command.json?auth=" + FIREBASE_AUTH);
-      clearHttp.addHeader("Content-Type", "application/json");
-      clearHttp.PUT("\"NONE\"");
-      clearHttp.end();
-
-      updateDisplay();
-      syncStateToFirebase();
+      // Očisti komandu na Firebase-u nakon izvršenja
+      clearCommand();
     }
   }
   http.end();
 }
 
-void setup() {
-  Serial.begin(115200);
-
-  pinMode(RELAY_PIN, OUTPUT);
-  pinMode(BUTTON_PIN, INPUT_PULLUP);
-  digitalWrite(RELAY_PIN, HIGH);
-
-  Wire.begin(21, 22);
-  display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
-  
-  updateDisplay();
-
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
+void updateTimer() {
+  if (timerActive) {
+    if (millis() - timerStartMillis >= timerInterval) {
+      digitalWrite(RELAY_PIN, LOW);
+      timerActive = false;
+      Serial.println("Tajmer istekao. Rele isključen.");
+      updateFirebaseStatus();
+    }
   }
-
-  Serial.println("\nSpojeno na Hotspot!");
-  updateDisplay();
-  syncStateToFirebase();
 }
 
-void loop() {
-  // Provjeravaj komande SAMO ako tajmer NIJE aktivan (sprecava kocenje odbrojavanja)
-  if (!timerActive) {
-    if (millis() - lastFirebasePoll >= pollInterval) {
-      lastFirebasePoll = millis();
-      checkFirebaseCommands();
-    }
-  }
+void updateFirebaseStatus() {
+  HTTPClient http;
+  String url = firebaseHost + "/status.json?auth=" + firebaseAuth;
 
-  // Lokalna logika tajmera - radi bez ikakvog mreznog kasnjenja
-  if (timerActive) {
-    long remaining = (long)(timerEndTime - millis()) / 1000;
-    if (remaining <= 0) {
-      timerActive = false;
-      relayState = false;
-      timerSecondsRemaining = 0;
-      digitalWrite(RELAY_PIN, HIGH); // Gasi relej
-      updateDisplay();
-      syncStateToFirebase(); // Obavijesti Firebase da je gotovo
-    } else if (remaining != timerSecondsRemaining) {
-      timerSecondsRemaining = remaining;
-      updateDisplay(); // Trenutno i glatko osvjezavanje SSD1306
-    }
-  }
+  http.begin(url);
+  http.addHeader("Content-Type", "application/json");
 
-  // Fizicko dugme na ESP32 (Pin 0)
-  bool currentButtonState = digitalRead(BUTTON_PIN);
-  if (lastButtonState == HIGH && currentButtonState == LOW) {
-    delay(50);
-    relayState = !relayState;
-    timerActive = false;
-    digitalWrite(RELAY_PIN, relayState ? LOW : HIGH);
-    updateDisplay();
-    syncStateToFirebase();
+  int currentState = digitalRead(RELAY_PIN);
+  String jsonData = "{\"relay\":" + String(currentState == HIGH ? "true" : "false") + 
+                    ",\"timerActive\":" + String(timerActive ? "true" : "false") + "}";
+
+  int httpResponseCode = http.PUT(jsonData);
+  if (httpResponseCode > 0) {
+    Serial.println("Status uspješno ažuriran na Firebase-u.");
+  } else {
+    Serial.println("Greška pri ažuriranju statusa: " + String(httpResponseCode));
   }
-  lastButtonState = currentButtonState;
+  http.end();
+}
+
+void clearCommand() {
+  HTTPClient http;
+  String url = firebaseHost + "/command.json?auth=" + firebaseAuth;
+  http.begin(url);
+  http.PUT("null");
+  http.end();
 }
