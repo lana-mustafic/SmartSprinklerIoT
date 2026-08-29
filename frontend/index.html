@@ -253,6 +253,19 @@
         background: linear-gradient(135deg, #1d4ed8, var(--accent-hover));
       }
 
+      /* Stil za SOS dugme */
+      .btn-sos {
+        background: linear-gradient(135deg, #dc2626, #ef4444);
+        color: white;
+        font-size: 1.1rem;
+        letter-spacing: 0.05em;
+        box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+      }
+
+      .btn-sos:hover:not(:disabled) {
+        background: linear-gradient(135deg, #b91c1c, #dc2626);
+      }
+
       .timer-row {
         display: grid;
         grid-template-columns: 1fr auto;
@@ -427,6 +440,11 @@
       <section class="card">
         <h2>Kontrole</h2>
         <div class="controls">
+          <!-- DODANO SOS DUGME OVDJE -->
+          <button id="sosBtn" class="btn btn-sos" type="button">
+            🚨 SOS - HITNO ISKLJUČIVANJE
+          </button>
+
           <button id="toggleBtn" class="btn btn-toggle" type="button">
             Toggle ON / OFF
           </button>
@@ -487,6 +505,7 @@
       const connDot = document.getElementById("connDot");
       const connText = document.getElementById("connText");
       const toggleBtn = document.getElementById("toggleBtn");
+      const sosBtn = document.getElementById("sosBtn"); // Referenca za SOS dugme
       const timerInput = document.getElementById("timerInput");
       const startTimerBtn = document.getElementById("startTimerBtn");
       const activityLog = document.getElementById("activityLog");
@@ -558,7 +577,7 @@
 
           if (entry.event === "Uključeno") {
             eventEl.classList.add("on");
-          } else if (entry.event === "Isključeno") {
+          } else if (entry.event === "Isključeno" || entry.event === "SOS - Hitno zaustavljanje") {
             eventEl.classList.add("off");
           } else if (entry.event === "Tajmer pokrenut" || (entry.event && entry.event.indexOf("Aktiviran program") === 0)) {
             eventEl.classList.add("timer");
@@ -674,6 +693,22 @@
         }
       }
 
+      // Funkcija za SOS dugme (šalje komandu za gašenje/hitni slučaj)
+      async function triggerSos() {
+        sosBtn.disabled = true;
+        try {
+          lastSelectedProgramSeconds = null;
+          await sendCommand("SOS_STOP"); // Možete prilagoditi komandu prema Vašem ESP32 kodu (npr. "OFF" ili "SOS")
+          await sendLogToFirebase("SOS - Hitno zaustavljanje");
+          await fetchStatus();
+        } catch (error) {
+          setConnection(false, "Greška pri slanju SOS komande");
+          console.error("triggerSos error:", error);
+        } finally {
+          sosBtn.disabled = false;
+        }
+      }
+
       async function startTimer() {
         const seconds = Math.max(1, parseInt(timerInput.value, 10) || 10);
         timerInput.value = seconds;
@@ -713,6 +748,7 @@
       }
 
       toggleBtn.addEventListener("click", toggleRelay);
+      sosBtn.addEventListener("click", triggerSos); // Event listener za SOS dugme
       startTimerBtn.addEventListener("click", startTimer);
 
       programButtons.forEach(function (button) {
